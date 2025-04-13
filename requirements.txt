@@ -7,3 +7,4 @@ pydantic-settings>=2.0.3 # For easy .env loading
 python-dotenv>=1.0.0    # Dependency for pydantic-settings
 dnspython>=2.0.0        # Recommended for mongodb+srv:// URIs
 email-validator>=2.0.0 # Recommended for FastAPI/Pydantic robustness
+certifi
