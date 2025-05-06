@@ -1,17 +1,20 @@
 # backend/app/routers/surveys.py
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path # Import Path
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import List
+from typing import List, Optional, Annotated # Import Optional, Annotated
+from bson import ObjectId # Import ObjectId
 
 from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 from ..services import survey_service
+# --- Import the Celery app and task ---
+from ..celery_worker import celery_app, process_survey_responses_task
 
 # Create an API router
 router = APIRouter(
-    prefix="/surveys", # All routes in this file will start with /surveys
-    tags=["Surveys"], # Tag for Swagger UI documentation grouping
-    responses={404: {"description": "Not found"}}, # Default response for errors
+    prefix="/surveys",
+    tags=["Surveys"],
+    responses={404: {"description": "Not found"}},
 )
 
 @router.post(
@@ -25,14 +28,7 @@ async def create_new_survey(
     survey: SurveyQuestionCreate = Body(...),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Creates a new survey question. Requires question text.
-    Other fields have defaults.
-    """
     created_survey = await survey_service.create_survey(db, survey)
-    if not created_survey:
-        # Consider more specific error handling if create_survey could fail meaningfully
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create survey")
     return created_survey
 
 @router.get(
@@ -46,9 +42,6 @@ async def read_all_surveys(
     limit: int = Query(100, ge=1, le=500, description="Maximum number of records to return"),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Retrieves a list of survey questions. Supports pagination via `skip` and `limit` query parameters.
-    """
     surveys = await survey_service.get_all_surveys(db, skip=skip, limit=limit)
     return surveys
 
@@ -59,13 +52,9 @@ async def read_all_surveys(
     description="Retrieves details of a single survey question using its unique MongoDB ObjectId."
 )
 async def read_survey_by_id(
-    survey_id: str,
+    survey_id: Annotated[str, Path(description="The ID of the survey to retrieve")], # Using Annotated Path
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Fetches a single survey question based on its `survey_id`.
-    Returns 404 if the ID is not valid or not found.
-    """
     survey = await survey_service.get_survey_by_id(db, survey_id)
     if survey is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found")
@@ -78,15 +67,10 @@ async def read_survey_by_id(
     description="Updates specific fields of an existing survey question."
 )
 async def update_existing_survey(
-    survey_id: str,
+    survey_id: Annotated[str, Path(description="The ID of the survey to update")],
     survey_update: SurveyQuestionUpdate = Body(...),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Updates a survey question identified by `survey_id`.
-    Only the fields provided in the request body will be updated.
-    Returns 404 if the ID is not found.
-    """
     updated_survey = await survey_service.update_survey(db, survey_id, survey_update)
     if updated_survey is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found or update failed")
@@ -99,16 +83,43 @@ async def update_existing_survey(
     description="Permanently removes a survey question from the database."
 )
 async def delete_existing_survey(
-    survey_id: str,
+    survey_id: Annotated[str, Path(description="The ID of the survey to delete")],
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
-    """
-    Deletes the survey question specified by `survey_id`.
-    Returns 204 No Content on successful deletion.
-    Returns 404 if the ID is not found.
-    """
     deleted = await survey_service.delete_survey(db, survey_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found")
-    # No content to return on successful delete
-    return None # FastAPI handles the 204 response correctly when None is returned
+    return None
+
+# --- Add this new endpoint ---
+@router.post(
+    "/{survey_id}/process", # New path segment
+    status_code=status.HTTP_202_ACCEPTED, # 202 Accepted means the request is accepted for processing
+    summary="Trigger Response Processing for Survey",
+    description="Queues a background task to process and group responses for the specified survey using NLP."
+)
+async def trigger_response_processing(
+    survey_id: Annotated[str, Path(description="The ID of the survey whose responses should be processed")],
+    # In a real scenario, you might add authentication/authorization here
+):
+    """
+    Triggers the background processing task for a survey's responses.
+
+    - **survey_id**: The ID of the survey to process.
+
+    The request returns immediately with a 202 Accepted status,
+    and the actual processing happens in the background.
+    """
+    # Basic check for valid ObjectId format before queuing
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid survey ID format: {survey_id}"
+        )
+
+    # Send the task to the Celery worker
+    # .delay() is a shortcut for .apply_async() with arguments
+    task_result = process_survey_responses_task.delay(survey_id)
+
+    # You might return the task ID or other info
+    return {"message": "Processing task queued", "task_id": task_result.id, "survey_id": survey_id}
