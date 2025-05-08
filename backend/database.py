@@ -45,3 +45,4 @@ def get_database() -> AsyncIOMotorDatabase:
 # --- Collection Names ---
 SURVEY_COLLECTION = "surveys"
 RESPONSE_COLLECTION = "responses" 
+GROUPED_RESULTS_COLLECTION = "grouped_results" # <-- Add this line
