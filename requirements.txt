@@ -1,13 +1,18 @@
 # requirements.txt
 fastapi>=0.104.0
 uvicorn[standard]>=0.23.2
-motor>=3.3.1
+motor>=3.3.1        
+pymongo>=4.0        # Add pymongo for Celery (synchronous)
 pydantic>=2.4.2
 pydantic-settings>=2.0.3 # For easy .env loading
 python-dotenv>=1.0.0    # Dependency for pydantic-settings
 dnspython>=2.0.0        # Recommended for mongodb+srv:// URIs
 email-validator>=2.0.0 # Recommended for FastAPI/Pydantic robustness
-certifi
 celery>=5.3.4
-redis>=5.0.1 
-eventlet
+redis>=5.0.1
+
+# --- NLP Libraries ---
+nltk>=3.8.1
+textblob>=0.17.1
+fuzzywuzzy>=0.18.0
+python-levenshtein>=0.24.0
