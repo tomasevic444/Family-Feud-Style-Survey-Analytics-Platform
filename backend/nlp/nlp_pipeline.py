@@ -2,109 +2,172 @@
 import re
 import string
 import logging
-from typing import List
+from typing import List, Dict, Tuple
 
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-# TextBlob can be used for spell checking
 from textblob import TextBlob
-# FuzzyWuzzy for string similarity
 from fuzzywuzzy import fuzz 
-
 logger = logging.getLogger(__name__)
 
-# Get the NLTK English stopwords set
+# --- NLTK Setup ---
 try:
     STOPWORDS_EN = set(stopwords.words('english'))
 except LookupError:
-    logger.warning("NLTK stopwords not found. Please run nltk.download('stopwords').")
-    STOPWORDS_EN = set() # Fallback to empty set
+    logger.warning("NLTK stopwords not found. Please ensure 'stopwords' is downloaded.")
+    STOPWORDS_EN = set()
 
 
+try:
+    word_tokenize("test sentence") 
+except LookupError:
+    logger.warning("NLTK 'punkt' tokenizer not found. Please ensure 'punkt' is downloaded.")
+
+try:
+    TextBlob("test").correct()
+except LookupError as e:
+    logger.warning(f"TextBlob NLTK resource missing: {e}. Download might be needed (e.g., 'averaged_perceptron_tagger', 'wordnet', 'omw-1.4').")
+
+
+# --- Preprocessing Functions ---
 def preprocess_text(text: str, remove_stopwords: bool = False) -> str:
     """
     Basic text preprocessing: lowercase, remove punctuation, tokenize, remove stopwords (optional).
     Returns the processed text as a single string (space-separated tokens).
     """
     if not isinstance(text, str):
-        return "" # Handle non-string input gracefully
+        return ""
 
-    # 1. Lowercase
     text = text.lower()
-
-    # 2. Remove punctuation
     text = text.translate(str.maketrans('', '', string.punctuation))
-
-    # 3. Tokenize (split into words)
     tokens = word_tokenize(text)
 
-    # 4. Remove stopwords and filter empty tokens
     if remove_stopwords:
         tokens = [word for word in tokens if word not in STOPWORDS_EN and word]
     else:
-         tokens = [word for word in tokens if word] # Just filter empty tokens if not removing stopwords
+        tokens = [word for word in tokens if word]
 
-    # 5. Join tokens back into a string 
-    # Returning as string is simpler for initial spell check/fuzzy match
     return " ".join(tokens)
 
 def basic_spell_check(text: str) -> str:
     """
     Applies basic spell checking using TextBlob.
-    Note: TextBlob's spell check is basic and might require training/dictionaries
-          for better accuracy on specific terms.
     """
     if not text:
         return ""
     try:
-        # TextBlob works best on phrases/sentences
         blob = TextBlob(text)
-        # Correct the whole phrase/sentence
         corrected_text = str(blob.correct())
         return corrected_text
     except Exception as e:
         logger.error(f"Error during spell check for '{text}': {e}")
-        return text # Return original text on error
-
+        return text
 
 def calculate_similarity(text1: str, text2: str) -> int:
     """
-    Calculates a similarity score between two strings using FuzzyWuzzy (Levenshtein).
+    Calculates a similarity score between two strings using FuzzyWuzzy.
     Returns a score between 0 and 100.
     """
     if not text1 or not text2:
-        return 0 # No similarity if one string is empty
-    # Use token_sort_ratio for better results with word order variations
-    return fuzz.token_sort_ratio(text1, text2)
+        return 0
+    # Using token_sort_ratio handles differences in word order and tokenizes before comparing.
+    # WRatio is also good as it tries several methods and picks the best.
+    return fuzz.WRatio(text1, text2)
 
-
-# --- Main Grouping Logic (Stub) ---
-def group_responses(raw_answers: List[str]):
+# --- Main Grouping Logic ---
+def group_responses(raw_answers: List[str], similarity_threshold: int = 85) -> List[Dict[str, any]]:
     """
-    Placeholder function for the main response grouping logic.
-    Takes a list of raw answer strings.
-    TODO: Implement the actual clustering algorithm here.
+    Groups raw survey responses based on lexical similarity.
+
+    Args:
+        raw_answers: A list of raw answer strings.
+        similarity_threshold: The FuzzWuzzy score (0-100) above which answers are considered similar.
+
+    Returns:
+        A list of dictionaries, where each dictionary represents a group:
+        {
+            "canonical_name": str,  // The representative name for the group
+            "count": int,           // Number of answers in this group
+            "raw_answers_in_group": List[str] // Original raw answers that belong to this group
+        }
     """
-    logger.info(f"Starting grouping for {len(raw_answers)} responses.")
+    logger.info(f"Starting grouping for {len(raw_answers)} responses with threshold {similarity_threshold}.")
 
-    # Example: Preprocess all answers
-    processed_answers = [preprocess_text(ans) for ans in raw_answers]
-    logger.info(f"Preprocessed answers: {processed_answers[:10]}...") # Log first 10
+    if not raw_answers:
+        return []
 
-    # Example: Apply basic spell check
-    spell_checked_answers = [basic_spell_check(ans) for ans in processed_answers]
-    logger.info(f"Spell checked answers: {spell_checked_answers[:10]}...") # Log first 10
+    # 1. Preprocess and spell-check answers
+    processed_data: List[Tuple[str, str]] = []
+    for original_ans in raw_answers:
+        # Only process non-empty strings
+        if original_ans and original_ans.strip():
+            preprocessed_ans = preprocess_text(original_ans, remove_stopwords=False) # Keep stopwords for now
+            # Spell check can be slow, consider its impact on performance
+            # spell_checked_ans = basic_spell_check(preprocessed_ans)
+            # For now, let's use preprocessed without intense spell check for speed
+            processed_data.append((original_ans, preprocessed_ans))
+        else:
+            # Handle empty or whitespace-only strings if necessary, or filter them earlier
+            logger.debug(f"Skipping empty or whitespace-only answer: '{original_ans}'")
 
 
-    # TODO: Implement clustering based on similarity (calculate_similarity) and embeddings
+    logger.info(f"Preprocessed {len(processed_data)} non-empty answers.")
+    if not processed_data:
+        return []
 
-    # --- Dummy Grouping ---
-    # For now, just return a dummy structure
-    # In reality, this would be the output of your clustering algorithm
-    dummy_grouped_results = {
-        "Dummy Group 1": ["answer 1 variation A", "answer 1 variation B"],
-        "Dummy Group 2": ["another answer C"],
-    }
-    logger.info(f"Finished dummy grouping.")
+    groups: List[Dict[str, any]] = []
+    # Keep track of answers that have already been assigned to a group
+    assigned_indices = [False] * len(processed_data)
 
-    return dummy_grouped_results # This structure will need to match your future Pydantic model
+    for i in range(len(processed_data)):
+        if assigned_indices[i]:
+            continue # Skip if this answer is already in a group
+
+        original_ans_i, processed_ans_i = processed_data[i]
+
+        # Start a new group with the current answer
+        # The first answer in a new group becomes its initial canonical name (using its processed form)
+        # and we store its original form.
+        current_group_canonical_name = processed_ans_i # Use processed for comparison
+        current_group_raw_answers = [original_ans_i] # Store original
+        assigned_indices[i] = True
+
+        # Iterate through the rest of the answers to find similar ones
+        for j in range(i + 1, len(processed_data)):
+            if assigned_indices[j]:
+                continue # Skip if already assigned
+
+            original_ans_j, processed_ans_j = processed_data[j]
+            similarity_score = calculate_similarity(processed_ans_i, processed_ans_j)
+
+            if similarity_score >= similarity_threshold:
+                current_group_raw_answers.append(original_ans_j)
+                assigned_indices[j] = True
+
+        # Add the newly formed group to our list of groups
+        groups.append({
+            "canonical_name": current_group_canonical_name, # This will be the processed version of the first item
+            "count": len(current_group_raw_answers),
+            "raw_answers_in_group": current_group_raw_answers # List of original answer strings
+        })
+
+    logger.info(f"Finished grouping. Found {len(groups)} groups.")
+
+    groups.sort(key=lambda x: x["count"], reverse=True)
+
+    return groups
+
+# --- Example Usage (for testing this file directly) ---
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    test_answers = [
+        "Eggs", "eggs", "EGGS!", " Eggs ", "Bacon and eggs",
+        "Pancakes", "pancake", "Cereal", "Brekfast Cereal", "Toast",
+        "toast.", "Oatmeal", "Porridge", "Yogurt", "Fruit",
+        "bagel", "Doughnut", "my dog", "the dog", "a dog", "", None
+    ]
+    grouped = group_responses(test_answers, similarity_threshold=85)
+    for group in grouped:
+        print(f"Group: {group['canonical_name']} (Count: {group['count']})")
+        print(f"  Raw answers: {group['raw_answers_in_group']}")
+        print("-" * 20)
