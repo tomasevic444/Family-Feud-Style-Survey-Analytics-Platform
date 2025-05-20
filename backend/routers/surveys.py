@@ -1,11 +1,13 @@
 # backend/app/routers/surveys.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path # Import Path
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import List, Optional, Annotated # Import Optional, Annotated
+from typing import List, Optional, Annotated
 from bson import ObjectId # Import ObjectId
 
 from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
+# --- Import the model for grouped results ---
+from ..models.grouped_result import SurveyGroupedResults
 from ..services import survey_service
 # --- Import the Celery app and task ---
 from ..celery_worker import celery_app, process_survey_responses_task
@@ -55,6 +57,8 @@ async def read_survey_by_id(
     survey_id: Annotated[str, Path(description="The ID of the survey to retrieve")], # Using Annotated Path
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
     survey = await survey_service.get_survey_by_id(db, survey_id)
     if survey is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found")
@@ -71,6 +75,8 @@ async def update_existing_survey(
     survey_update: SurveyQuestionUpdate = Body(...),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
     updated_survey = await survey_service.update_survey(db, survey_id, survey_update)
     if updated_survey is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found or update failed")
@@ -86,21 +92,38 @@ async def delete_existing_survey(
     survey_id: Annotated[str, Path(description="The ID of the survey to delete")],
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
     deleted = await survey_service.delete_survey(db, survey_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found")
-    return None
+    return None # FastAPI will return 204 No Content
 
-# --- Add this new endpoint ---
 @router.post(
-    "/{survey_id}/process", # New path segment
-    status_code=status.HTTP_202_ACCEPTED, # 202 Accepted means the request is accepted for processing
+    "/{survey_id}/process",
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Trigger Response Processing for Survey",
     description="Queues a background task to process and group responses for the specified survey using NLP."
 )
 async def trigger_response_processing(
     survey_id: Annotated[str, Path(description="The ID of the survey whose responses should be processed")],
-    # In a real scenario, you might add authentication/authorization here
+):
+    
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
+    task_result = process_survey_responses_task.delay(survey_id)
+    return {"message": "Processing task queued", "task_id": task_result.id, "survey_id": survey_id}
+
+
+@router.get(
+    "/{survey_id}/results",
+    response_model=SurveyGroupedResults,
+    summary="Get Processed Survey Results",
+    description="Retrieves the NLP-processed and grouped results for a specific survey."
+)
+async def read_survey_results(
+    survey_id: Annotated[str, Path(description="The ID of the survey to retrieve results for")],
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Triggers the background processing task for a survey's responses.
@@ -110,16 +133,13 @@ async def trigger_response_processing(
     The request returns immediately with a 202 Accepted status,
     and the actual processing happens in the background.
     """
-    # Basic check for valid ObjectId format before queuing
     if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
+
+    results = await survey_service.get_survey_results(db, survey_id)
+    if results is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid survey ID format: {survey_id}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Processed results not found for survey ID '{survey_id}'. Please ensure the survey exists and has been processed."
         )
-
-    # Send the task to the Celery worker
-    # .delay() is a shortcut for .apply_async() with arguments
-    task_result = process_survey_responses_task.delay(survey_id)
-
-    # You might return the task ID or other info
-    return {"message": "Processing task queued", "task_id": task_result.id, "survey_id": survey_id}
+    return results
