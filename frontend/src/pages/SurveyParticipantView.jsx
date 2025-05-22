@@ -1,6 +1,6 @@
 // src/components/SurveyParticipantView.jsx
 import React, { useState, useEffect } from 'react';
-import apiClient from '../api'; // Import the api client
+import apiClient from '../api'; 
 
 const DEFAULT_SURVEY_ID = "67f65f51c41570ff09c257c9";
 
@@ -22,8 +22,8 @@ function SurveyParticipantView({ surveyId = DEFAULT_SURVEY_ID }) {
     }
 
     setIsLoading(true);
-    setError(null); // Clear previous errors
-    setSuccessMessage(''); // Clear previous success messages
+    setError(null); 
+    setSuccessMessage(''); 
 
     apiClient.get(`/surveys/${surveyId}`)
       .then(response => {
@@ -41,16 +41,16 @@ function SurveyParticipantView({ surveyId = DEFAULT_SURVEY_ID }) {
         } else {
           setError("Failed to load the survey question. Please try again later.");
         }
-        setSurvey(null); // Ensure survey is null on error
+        setSurvey(null);
       })
       .finally(() => {
         setIsLoading(false);
       });
-  }, [surveyId]); // Re-run effect if surveyId changes
+  }, [surveyId]); 
 
   // Handle Answer Submission
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission
+    e.preventDefault(); 
     if (!answer.trim()) {
       setError("Please enter an answer.");
       return;
@@ -69,11 +69,11 @@ function SurveyParticipantView({ surveyId = DEFAULT_SURVEY_ID }) {
         answer_text: answer,
       });
       setSuccessMessage(`Answer "${response.data.answer_text}" submitted successfully!`);
-      setAnswer(''); // Clear the input field
+      setAnswer(''); 
     } catch (err) {
       console.error("Error submitting answer:", err);
       if (err.response && err.response.data && err.response.data.detail) {
-         // Display specific error from backend if available
+        
         setError(`Submission failed: ${err.response.data.detail}`);
       } else {
         setError("Failed to submit answer. Please check your connection and try again.");
@@ -131,7 +131,7 @@ function SurveyParticipantView({ surveyId = DEFAULT_SURVEY_ID }) {
         <div className="flex items-center justify-center">
           <button
             type="submit"
-            disabled={isSubmitting || !survey} // Also disable if survey somehow isn't loaded
+            disabled={isSubmitting || !survey} 
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md focus:outline-none focus:shadow-outline transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Submitting...' : 'Submit Answer'}

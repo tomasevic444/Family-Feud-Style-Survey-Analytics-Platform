@@ -10,7 +10,7 @@ dnspython>=2.0.0        # Recommended for mongodb+srv:// URIs
 email-validator>=2.0.0 # Recommended for FastAPI/Pydantic robustness
 celery>=5.3.4
 redis>=5.0.1
-
+certifi
 # --- NLP Libraries ---
 nltk>=3.8.1
 textblob>=0.17.1
