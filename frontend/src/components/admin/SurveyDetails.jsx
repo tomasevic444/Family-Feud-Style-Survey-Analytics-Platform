@@ -1,6 +1,7 @@
 // src/components/admin/SurveyDetails.jsx
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api';
+import SurveyResultsChart from './SurveyResultsChart'; // <-- Import the chart component
 
 function SurveyDetails({ surveyId }) {
   const [survey, setSurvey] = useState(null);
@@ -22,9 +23,10 @@ function SurveyDetails({ surveyId }) {
       setIsLoading(true);
       setError(null);
       setProcessingMessage('');
+      setGroupedResults(null); // Reset grouped results before fetching
 
       try {
-        // Fetch survey details
+         // Fetch survey details
         const surveyRes = await apiClient.get(`/surveys/${surveyId}`);
         setSurvey(surveyRes.data);
 
@@ -34,10 +36,16 @@ function SurveyDetails({ surveyId }) {
 
         try {
           const groupedRes = await apiClient.get(`/surveys/${surveyId}/results`);
-          setGroupedResults(groupedRes.data);
+          // Ensure groupedRes.data and groupedRes.data.grouped_answers exist
+          if (groupedRes.data && groupedRes.data.grouped_answers) {
+            setGroupedResults(groupedRes.data);
+          } else {
+            setGroupedResults({ grouped_answers: [] }); // Set empty if no groups
+            setProcessingMessage('Survey results processed but no groups found.');
+          }
         } catch (resultsError) {
           if (resultsError.response && resultsError.response.status === 404) {
-            setGroupedResults(null); 
+            setGroupedResults(null);
             setProcessingMessage('Survey results not processed yet or no results found.');
           } else {
             console.error("Error fetching grouped results:", resultsError);
@@ -64,7 +72,7 @@ function SurveyDetails({ surveyId }) {
     setError(null);
     try {
       const response = await apiClient.post(`/surveys/${surveyId}/process`);
-      setProcessingMessage(`Processing queued (Task ID: ${response.data.task_id}). Refresh in a bit to see results.`);
+      setProcessingMessage(`Processing queued (Task ID: ${response.data.task_id}). Please refresh after a few moments to see updated results.`);
       // Note: To see updated results, the user would need to refresh or we'd implement polling/websockets
     } catch (err) {
       console.error("Error triggering processing:", err);
@@ -73,7 +81,7 @@ function SurveyDetails({ surveyId }) {
     }
   };
 
-
+  
   if (!surveyId) {
     return <div className="text-center text-gray-500 p-6">Select a survey to view its details.</div>;
   }
@@ -83,8 +91,8 @@ function SurveyDetails({ surveyId }) {
   if (!survey) return <p className="text-center p-4">Survey data not found.</p>;
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6">
-      <div className="mb-6 pb-4 border-b border-gray-200">
+    <div className="bg-white shadow-md rounded-lg p-6 space-y-8"> {/* Added space-y-8 */}
+      <div className="pb-4 border-b border-gray-200">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">{survey.question_text}</h2>
         <p className="text-sm text-gray-600">
           Status: <span className={`font-semibold ${survey.is_active ? 'text-green-600' : 'text-red-600'}`}>
@@ -101,29 +109,19 @@ function SurveyDetails({ surveyId }) {
         {processingMessage && <p className="mt-2 text-sm text-blue-600">{processingMessage}</p>}
       </div>
 
-      {/* Raw Responses Section */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-3">Raw Responses ({rawResponses.length})</h3>
-        {rawResponses.length > 0 ? (
-          <ul className="max-h-60 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200 text-sm">
-            {rawResponses.map(resp => (
-              <li key={resp.id} className="py-1 border-b border-gray-100 last:border-b-0">
-                {resp.answer_text}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-500 text-sm">No raw responses submitted yet.</p>
-        )}
-      </div>
+      {/* Chart Section - Render if groupedResults and grouped_answers exist */}
+      {groupedResults && groupedResults.grouped_answers && (
+        <SurveyResultsChart data={groupedResults.grouped_answers} />
+      )}
+
 
       {/* Grouped Results Section */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-700 mb-3">Grouped Results</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-3">Grouped Results (Text)</h3>
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-80 overflow-y-auto bg-gray-50 p-3 rounded border"> {/* Added max-h and overflow */}
             {groupedResults.grouped_answers.map((group, index) => (
-              <div key={index} className="bg-gray-50 p-3 rounded border border-gray-200">
+              <div key={index} className="bg-white p-3 rounded border border-gray-200 shadow-sm">
                 <p className="font-semibold text-blue-700">
                   {group.canonical_name} <span className="text-xs font-normal text-gray-600">({group.count} responses)</span>
                 </p>
@@ -138,7 +136,23 @@ function SurveyDetails({ surveyId }) {
         ) : groupedResults ? (
           <p className="text-gray-500 text-sm">No groups found in the processed results.</p>
         ) : (
-          <p className="text-gray-500 text-sm">Results have not been processed or are unavailable.</p>
+          <p className="text-gray-500 text-sm">Results have not been processed or are unavailable for textual display.</p>
+        )}
+      </div>
+
+       {/* Raw Responses Section */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-3">Raw Responses ({rawResponses.length})</h3>
+        {rawResponses.length > 0 ? (
+          <ul className="max-h-60 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200 text-sm">
+            {rawResponses.map(resp => (
+              <li key={resp.id} className="py-1 border-b border-gray-100 last:border-b-0">
+                {resp.answer_text}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500 text-sm">No raw responses submitted yet.</p>
         )}
       </div>
     </div>
