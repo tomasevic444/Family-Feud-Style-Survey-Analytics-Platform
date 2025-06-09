@@ -6,17 +6,16 @@ import CreateSurveyForm from '../components/admin/CreateSurveyForm';
 
 function AdminPage() {
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
-  const [surveyListKey, setSurveyListKey] = useState(Date.now());
+  const [surveyListKey, setSurveyListKey] = useState(Date.now()); 
 
   const handleSelectSurvey = (surveyId) => {
     setSelectedSurveyId(surveyId);
   };
 
   // This function will be called by CreateSurveyForm after a new survey is made
-  const handleSurveyCreated = useCallback(() => {
-    console.log("AdminPage: New survey created, refreshing list.");
-    setSurveyListKey(Date.now()); 
-    setSelectedSurveyId(null); 
+  const refreshSurveyList = useCallback(() => {
+    console.log("AdminPage: Refreshing survey list.");
+    setSurveyListKey(Date.now());
   }, []);
 
 
@@ -27,13 +26,13 @@ function AdminPage() {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 space-y-8"> 
-          <CreateSurveyForm onSurveyCreated={handleSurveyCreated} />
-          <SurveyList key={surveyListKey} onSelectSurvey={handleSelectSurvey} />      
+        <div className="md:col-span-1 space-y-8">
+          <CreateSurveyForm onSurveyCreated={refreshSurveyList} />
+          <SurveyList key={surveyListKey} onSelectSurvey={handleSelectSurvey} />
         </div>
 
         <div className="md:col-span-2">
-          <SurveyDetails surveyId={selectedSurveyId} />
+          <SurveyDetails surveyId={selectedSurveyId} onSurveyUpdate={refreshSurveyList} />
         </div>
       </div>
     </div>
