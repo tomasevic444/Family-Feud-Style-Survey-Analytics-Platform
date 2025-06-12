@@ -87,3 +87,47 @@ async def get_survey_results(db: AsyncIOMotorDatabase, survey_id: str) -> Option
     else:
         # No results found for this survey_id
         return None
+    
+async def update_group_canonical_name(
+    db: AsyncIOMotorDatabase,
+    survey_id: str,
+    current_canonical_name: str,
+    new_canonical_name: str
+) -> Optional[SurveyGroupedResults]:
+    """
+    Updates the canonical name of a specific group within a survey's results.
+    Returns the updated SurveyGroupedResults document or None if not found/updated.
+    """
+    if not ObjectId.is_valid(survey_id):
+        return None 
+    survey_id_obj = ObjectId(survey_id)
+
+    # MongoDB query to find the document and the specific element in the array
+    # to update. The '$' positional operator refers to the first element matched
+    # by the query in the `grouped_answers` array.
+    update_result = await db[GROUPED_RESULTS_COLLECTION].update_one(
+        {
+            "survey_id": survey_id_obj,
+            "grouped_answers.canonical_name": current_canonical_name # Find the group by its current name
+        },
+        {
+            "$set": {
+                "grouped_answers.$.canonical_name": new_canonical_name, # Update the name of the matched group
+                "processing_time_utc": datetime.utcnow() # Also update the overall processing time
+            }
+        }
+    )
+
+    if update_result.matched_count > 0 and update_result.modified_count > 0:
+        # If successful, fetch and return the entire updated results document
+        updated_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
+        if updated_results_doc:
+            return SurveyGroupedResults(**updated_results_doc)
+    elif update_result.matched_count > 0 and update_result.modified_count == 0:
+        # Found the survey and group, but the new name was the same as the old one
+        # (or some other reason it wasn't modified). Return current state.
+        current_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
+        if current_results_doc:
+            return SurveyGroupedResults(**current_results_doc)
+
+    return None 

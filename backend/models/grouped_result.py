@@ -54,6 +54,7 @@ class SurveyGroupedResults(BaseModel):
     grouped_answers: List[GroupedAnswer] = Field(..., description="The list of grouped answers and their counts")
     errors: List[str] = Field(default_factory=list, description="List of errors encountered during processing")
 
-
+class UpdateCanonicalNameRequest(BaseModel):
+    new_canonical_name: str = Field(..., min_length=1, description="The new canonical name for the group.")
 # --- Collection Name ---
 GROUPED_RESULTS_COLLECTION = "grouped_results"

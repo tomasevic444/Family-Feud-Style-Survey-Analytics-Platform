@@ -3,11 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List, Optional, Annotated
 from bson import ObjectId # Import ObjectId
+import urllib.parse # For URL encoding/decoding path parameters
 
 from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 # --- Import the model for grouped results ---
-from ..models.grouped_result import SurveyGroupedResults
+from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameRequest 
 from ..services import survey_service
 # --- Import the Celery app and task ---
 from ..celery_worker import celery_app, process_survey_responses_task
@@ -143,3 +144,39 @@ async def read_survey_results(
             detail=f"Processed results not found for survey ID '{survey_id}'. Please ensure the survey exists and has been processed."
         )
     return results
+
+@router.put(
+    "/{survey_id}/results/groups/{current_group_name_encoded}", # Use URL encoded name
+    response_model=SurveyGroupedResults,
+    summary="Update Canonical Name of a Group",
+    description="Updates the canonical name for a specific group within a survey's processed results."
+)
+async def update_survey_group_canonical_name(
+    survey_id: Annotated[str, Path(description="The ID of the survey containing the results.")],
+    current_group_name_encoded: Annotated[str, Path(description="The URL-encoded current canonical name of the group to update.")],
+    update_request: UpdateCanonicalNameRequest = Body(...),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Updates the canonical name of a group.
+    The `current_group_name_encoded` must be URL-encoded if it contains special characters.
+    """
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
+
+    # Decode the group name from the URL path
+    current_group_name = urllib.parse.unquote_plus(current_group_name_encoded)
+
+    updated_results = await survey_service.update_group_canonical_name(
+        db,
+        survey_id,
+        current_group_name,
+        update_request.new_canonical_name
+    )
+
+    if updated_results is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Survey results or group '{current_group_name}' not found for survey ID '{survey_id}', or update failed."
+        )
+    return updated_results
