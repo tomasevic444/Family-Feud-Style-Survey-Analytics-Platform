@@ -13,6 +13,12 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [processingMessage, setProcessingMessage] = useState('');
   const [statusUpdateMessage, setStatusUpdateMessage] = useState('');
 
+  const [editingGroupName, setEditingGroupName] = useState(null); // Stores the current canonical_name being edited
+  const [newGroupName, setNewGroupName] = useState('');
+  const [isSavingGroupName, setIsSavingGroupName] = useState(false);
+  const [groupNameEditError, setGroupNameEditError] = useState('');
+
+
   const fetchSurveyDetails = useCallback(async () => {
     if (!surveyId) {
         setSurvey(null);
@@ -21,12 +27,16 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         setError(null);
         setProcessingMessage('');
         setStatusUpdateMessage('');
+        setEditingGroupName(null); // Reset editing state
+        setGroupNameEditError(''); // Clear group edit errors
         return;
     }
     setIsLoading(true);
     setError(null);
     setProcessingMessage('');
     setStatusUpdateMessage('');
+    setEditingGroupName(null); // Reset editing state on new survey load
+    setGroupNameEditError(''); // Clear group edit errors
     setGroupedResults(null); // Reset grouped results before fetching
 
     try {
@@ -53,7 +63,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         } else {
           console.error("Error fetching grouped results:", resultsError);
           setError('Failed to fetch grouped results.');
-          setGroupedResults(null);
+          setGroupedResults(null); 
         }
       }
     } catch (err) {
@@ -76,6 +86,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setProcessingMessage('Processing request sent...');
     setStatusUpdateMessage(''); // Clear other messages
     setError(null);
+    setGroupNameEditError('');
     try {
       const response = await apiClient.post(`/surveys/${surveyId}/process`);
       setProcessingMessage(`Processing queued (Task ID: ${response.data.task_id}). Refresh after a few moments to see updated results.`);
@@ -87,14 +98,11 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   };
 
   const handleToggleActiveStatus = async () => {
-    if (!survey)  {
-      console.error("SurveyDetails: handleToggleActiveStatus called but survey is null!");
-      return;}
-       console.log("SurveyDetails: Toggling status for survey object:", survey); // <-- ADD THIS
-  console.log("SurveyDetails: Survey ID being used:", survey.id); // <-- ADD THIS
+    if (!survey) return;
     setIsUpdatingStatus(true);
     setStatusUpdateMessage('');
     setError(null);
+    setGroupNameEditError('');
 
     const newStatus = !survey.is_active;
     try {
@@ -114,12 +122,63 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     }
   };
 
+  const handleEditGroupName = (currentName) => {
+    setEditingGroupName(currentName);
+    setNewGroupName(currentName); // Pre-fill input with current name
+    setGroupNameEditError(''); 
+    setError(''); 
+    setProcessingMessage('');
+    setStatusUpdateMessage('');
+  };
+
+  const handleCancelEditGroupName = () => {
+    setEditingGroupName(null);
+    setNewGroupName('');
+    setGroupNameEditError('');
+  };
+
+  const handleSaveGroupName = async (currentName) => {
+    if (!newGroupName.trim()) {
+      setGroupNameEditError("New group name cannot be empty.");
+      return;
+    }
+    if (newGroupName.trim() === currentName) {
+      setEditingGroupName(null); // Nothing changed, just close editor
+      setNewGroupName('');
+      return;
+    }
+
+    setIsSavingGroupName(true);
+    setGroupNameEditError('');
+
+    try {
+      // The current_group_name needs to be URL encoded for the path
+      const encodedCurrentName = encodeURIComponent(currentName);
+      const response = await apiClient.put(
+        `/surveys/${surveyId}/results/groups/${encodedCurrentName}`,
+        { new_canonical_name: newGroupName.trim() }
+      );
+      setGroupedResults(response.data); // Update the entire groupedResults state
+      setEditingGroupName(null); // Close editor
+      setNewGroupName('');
+    } catch (err) {
+      console.error("Error updating group name:", err);
+      if (err.response && err.response.data && err.response.data.detail) {
+        setGroupNameEditError(`Save failed: ${err.response.data.detail}`);
+      } else {
+        setGroupNameEditError("Failed to save new group name.");
+      }
+    } finally {
+      setIsSavingGroupName(false);
+    }
+  };
+
   if (!surveyId) {
     return <div className="text-center text-gray-500 p-6 bg-white shadow-md rounded-lg">Select a survey to view its details.</div>;
   }
 
   if (isLoading) return <div className="text-center p-10 bg-white shadow-md rounded-lg">Loading survey details...</div>;
-  if (error && !survey) {
+  if (error && !survey && !editingGroupName) {
       return <div className="text-center p-4 text-red-600 bg-red-100 border border-red-400 rounded-md shadow">{error}</div>;
   }
   
@@ -133,14 +192,14 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
             <p className="text-sm text-gray-600">
             Status: <span className={`font-semibold ${survey.is_active ? 'text-green-600' : 'text-red-600'}`}>
                 {survey.is_active ? 'Active' : 'Inactive'}
-          </span>
+            </span>
             </p>
             <p className="text-sm text-gray-600">
             Participant Limit: <span className="font-semibold">{survey.participant_limit}</span>
             </p>
         </div>
 
-        <div className="flex flex-wrap gap-3 mt-4"> 
+        <div className="flex flex-wrap gap-3 mt-4">
             <button
                 onClick={handleToggleActiveStatus}
                 disabled={isUpdatingStatus}
@@ -162,7 +221,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         </div>
         {statusUpdateMessage && <p className="mt-3 text-sm text-green-700">{statusUpdateMessage}</p>}
         {processingMessage && <p className="mt-3 text-sm text-blue-700">{processingMessage}</p>}
-        {error && !statusUpdateMessage && !processingMessage && <p className="mt-3 text-sm text-red-700 bg-red-100 p-2 rounded">{error}</p>}
+        {error && !statusUpdateMessage && !processingMessage && !groupNameEditError && <p className="mt-3 text-sm text-red-700 bg-red-100 p-2 rounded">{error}</p>}
       </div>
 
       {/* Chart Section - Render if groupedResults and grouped_answers exist */}
@@ -180,13 +239,51 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
       {/* Grouped Results Section */}
       <div>
         <h3 className="text-lg font-semibold text-gray-700 mb-3">Grouped Results (Text)</h3>
+        {groupNameEditError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{groupNameEditError}</p>}
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
-          <div className="space-y-3 max-h-80 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200">
+          <div className="space-y-3 max-h-96 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200">
             {groupedResults.grouped_answers.map((group, index) => (
-              <div key={group.canonical_name + index} className="bg-white p-3 rounded border border-gray-200 shadow-sm"> 
-                <p className="font-semibold text-blue-700">
-                  {group.canonical_name} <span className="text-xs font-normal text-gray-600">({group.count} responses)</span>
-                </p>
+              <div key={group.canonical_name + index} className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                {editingGroupName === group.canonical_name ? (
+                  // --- Editing State ---
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      autoFocus
+                    />
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleSaveGroupName(group.canonical_name)}
+                        disabled={isSavingGroupName}
+                        className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50"
+                      >
+                        {isSavingGroupName ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={handleCancelEditGroupName}
+                        className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // --- Display State ---
+                  <div className="flex justify-between items-center">
+                    <p className="font-semibold text-blue-700">
+                      {group.canonical_name} <span className="text-xs font-normal text-gray-600">({group.count} responses)</span>
+                    </p>
+                    <button
+                      onClick={() => handleEditGroupName(group.canonical_name)}
+                      className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md"
+                    >
+                      Edit Name
+                    </button>
+                  </div>
+                )}
                 {group.raw_answers && group.raw_answers.length > 0 && (
                     <ul className="text-xs text-gray-600 pl-4 list-disc">
                     {group.raw_answers.map((ans, i) => (
@@ -210,7 +307,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         {rawResponses.length > 0 ? (
           <ul className="max-h-60 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200 text-sm">
             {rawResponses.map(resp => (
-              <li key={resp.id} className="py-1 border-b border-gray-100 last:border-b-0">
+              <li key={resp._id || resp.id} className="py-1 border-b border-gray-100 last:border-b-0">
                 {resp.answer_text}
               </li>
             ))}
