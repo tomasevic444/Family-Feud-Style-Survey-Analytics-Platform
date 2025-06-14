@@ -7,10 +7,8 @@ import urllib.parse # For URL encoding/decoding path parameters
 
 from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
-# --- Import the model for grouped results ---
-from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameRequest 
+from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameRequest, MoveAnswerRequest
 from ..services import survey_service
-# --- Import the Celery app and task ---
 from ..celery_worker import celery_app, process_survey_responses_task
 
 # Create an API router
@@ -178,5 +176,32 @@ async def update_survey_group_canonical_name(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Survey results or group '{current_group_name}' not found for survey ID '{survey_id}', or update failed."
+        )
+    return updated_results
+
+@router.post(
+    "/{survey_id}/results/move-answer", 
+    response_model=SurveyGroupedResults,
+    summary="Move a Raw Answer Between Groups",
+    description="Moves a specific raw answer from a source group to a destination group within a survey's processed results. Creates the destination group if it doesn't exist."
+)
+async def move_survey_answer_between_groups(
+    survey_id: Annotated[str, Path(description="The ID of the survey containing the results.")],
+    move_request: MoveAnswerRequest = Body(...),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
+
+    updated_results = await survey_service.move_answer_between_groups(
+        db,
+        survey_id,
+        move_request
+    )
+
+    if updated_results is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Failed to move answer for survey ID '{survey_id}'. Survey results, source group, or answer in source group may not exist."
         )
     return updated_results

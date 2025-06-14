@@ -56,5 +56,10 @@ class SurveyGroupedResults(BaseModel):
 
 class UpdateCanonicalNameRequest(BaseModel):
     new_canonical_name: str = Field(..., min_length=1, description="The new canonical name for the group.")
+
+class MoveAnswerRequest(BaseModel):
+    raw_answer_text: str = Field(..., description="The specific raw answer text to move.")
+    source_group_canonical_name: str = Field(..., description="The current canonical name of the group the answer belongs to.")
+    destination_group_canonical_name: str = Field(..., min_length=1, description="The canonical name of the group to move the answer to. If it doesn't exist, it will be created.")
 # --- Collection Name ---
 GROUPED_RESULTS_COLLECTION = "grouped_results"
