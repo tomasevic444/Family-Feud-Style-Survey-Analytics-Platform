@@ -7,7 +7,7 @@ import urllib.parse # For URL encoding/decoding path parameters
 
 from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
-from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameRequest, MoveAnswerRequest
+from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameRequest, MoveAnswerRequest,  MergeGroupsRequest
 from ..services import survey_service
 from ..celery_worker import celery_app, process_survey_responses_task
 
@@ -203,5 +203,39 @@ async def move_survey_answer_between_groups(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Failed to move answer for survey ID '{survey_id}'. Survey results, source group, or answer in source group may not exist."
+        )
+    return updated_results
+
+@router.post(
+    "/{survey_id}/results/merge-groups", # Using POST as it modifies multiple resources
+    response_model=SurveyGroupedResults,
+    summary="Merge Multiple Groups",
+    description="Merges two or more source groups into a single destination group."
+)
+async def merge_survey_groups(
+    survey_id: Annotated[str, Path(description="The ID of the survey containing the results.")],
+    merge_request: MergeGroupsRequest = Body(...),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
+
+    # Basic validation
+    if merge_request.destination_canonical_name in merge_request.source_group_names:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Destination name cannot be one of the source names when merging into an existing group; use 'Edit Name' instead."
+        )
+
+    updated_results = await survey_service.merge_groups(
+        db,
+        survey_id,
+        merge_request
+    )
+
+    if updated_results is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail=f"Failed to merge groups for survey ID '{survey_id}'. Survey results or one of the source groups may not exist."
         )
     return updated_results

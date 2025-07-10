@@ -61,5 +61,9 @@ class MoveAnswerRequest(BaseModel):
     raw_answer_text: str = Field(..., description="The specific raw answer text to move.")
     source_group_canonical_name: str = Field(..., description="The current canonical name of the group the answer belongs to.")
     destination_group_canonical_name: str = Field(..., min_length=1, description="The canonical name of the group to move the answer to. If it doesn't exist, it will be created.")
+
+class MergeGroupsRequest(BaseModel):
+    source_group_names: List[str] = Field(..., min_items=2, description="A list of the canonical names of the groups to merge.")
+    destination_canonical_name: str = Field(..., min_length=1, description="The canonical name for the new, merged group.")
 # --- Collection Name ---
 GROUPED_RESULTS_COLLECTION = "grouped_results"

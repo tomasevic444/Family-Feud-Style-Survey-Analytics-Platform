@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
-from ..models.grouped_result import SurveyGroupedResults, MoveAnswerRequest 
+from ..models.grouped_result import SurveyGroupedResults, MoveAnswerRequest, MergeGroupsRequest
 from ..database import SURVEY_COLLECTION, GROUPED_RESULTS_COLLECTION 
 
 async def create_survey(db: AsyncIOMotorDatabase, survey: SurveyQuestionCreate) -> SurveyQuestionInDB:
@@ -223,6 +223,71 @@ async def move_answer_between_groups(
 
     if update_result.modified_count > 0 or update_result.matched_count > 0: # matched_count for when no actual modification occurred but doc was found
         # Fetch and return the updated document to confirm changes
+        final_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
+        if final_results_doc:
+            return SurveyGroupedResults(**final_results_doc)
+
+    return None 
+
+async def merge_groups(
+    db: AsyncIOMotorDatabase,
+    survey_id: str,
+    merge_request: MergeGroupsRequest
+) -> Optional[SurveyGroupedResults]:
+    """
+    Merges multiple source groups into a single destination group.
+    The original source groups are removed.
+    Returns the updated SurveyGroupedResults document or None if update fails.
+    """
+    if not ObjectId.is_valid(survey_id):
+        return None
+    survey_id_obj = ObjectId(survey_id)
+
+    # 1. Fetch the current grouped results document
+    results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
+    if not results_doc:
+        return None
+
+    grouped_answers_list = results_doc.get("grouped_answers", [])
+
+    # 2. Collect answers and details from source groups
+    newly_merged_group = {
+        "canonical_name": merge_request.destination_canonical_name,
+        "count": 0,
+        "raw_answers": []
+    }
+    # List to hold groups that were NOT part of the merge
+    remaining_groups = []
+    source_groups_found_count = 0
+
+    for group in grouped_answers_list:
+        if group["canonical_name"] in merge_request.source_group_names:
+            # This group is part of the merge
+            newly_merged_group["raw_answers"].extend(group["raw_answers"])
+            newly_merged_group["count"] += group["count"]
+            source_groups_found_count += 1
+        else:
+            # This group is not being merged, so keep it
+            remaining_groups.append(group)
+
+    # 3. Validate that we found all the requested source groups
+    if source_groups_found_count != len(merge_request.source_group_names):
+        return None 
+
+    # 4. Add the new, combined group to the list of remaining groups
+    remaining_groups.append(newly_merged_group)
+
+    # 5. Update the document in MongoDB
+    update_result = await db[GROUPED_RESULTS_COLLECTION].update_one(
+        {"survey_id": survey_id_obj},
+        {"$set": {
+            "grouped_answers": remaining_groups,
+            "processing_time_utc": datetime.utcnow()
+        }}
+    )
+
+    if update_result.modified_count > 0:
+        # Fetch and return the updated document
         final_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
         if final_results_doc:
             return SurveyGroupedResults(**final_results_doc)
