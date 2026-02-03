@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../api';
 import SurveyResultsChart from './SurveyResultsChart'; 
 import MoveAnswerModal from './MoveAnswerModal'; 
-
+import SemanticSpaceChart from './SemanticSpaceChart';
 function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [survey, setSurvey] = useState(null);
   const [rawResponses, setRawResponses] = useState([]);
@@ -284,7 +284,12 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         </div>
 
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
-          <SurveyResultsChart data={groupedResults.grouped_answers} />
+          <>
+    <SurveyResultsChart data={groupedResults.grouped_answers} />
+    
+    <SemanticSpaceChart data={groupedResults.grouped_answers} /> 
+  </>
+  
         ) : groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length === 0 ? (
           <div className="chart-container p-4 border border-gray-300 rounded-lg shadow bg-white">
               <h4 className="text-md font-semibold text-gray-700 mb-3 text-center">Survey Response Distribution</h4>
