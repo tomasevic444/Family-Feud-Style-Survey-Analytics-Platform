@@ -1,160 +1,108 @@
-# backend/app/nlp/nlp_pipeline.py
-import re
-import string
 import logging
-from typing import List, Dict, Tuple
+import numpy as np
+from typing import List, Dict, Any
+from collections import Counter
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.decomposition import PCA
 
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from textblob import TextBlob
-from fuzzywuzzy import fuzz 
+from .model_loader import model_loader
+
 logger = logging.getLogger(__name__)
 
-# --- NLTK Setup ---
-try:
-    STOPWORDS_EN = set(stopwords.words('english'))
-except LookupError:
-    logger.warning("NLTK stopwords not found. Please ensure 'stopwords' is downloaded.")
-    STOPWORDS_EN = set()
-
-
-try:
-    word_tokenize("test sentence") 
-except LookupError:
-    logger.warning("NLTK 'punkt' tokenizer not found. Please ensure 'punkt' is downloaded.")
-
-try:
-    TextBlob("test").correct()
-except LookupError as e:
-    logger.warning(f"TextBlob NLTK resource missing: {e}. Download might be needed (e.g., 'averaged_perceptron_tagger', 'wordnet', 'omw-1.4').")
-
-
-# --- Preprocessing Functions ---
-def preprocess_text(text: str, remove_stopwords: bool = False) -> str:
+def group_responses(raw_answers: List[str], distance_threshold: float = 1.5) -> List[Dict[str, Any]]:
     """
-    Basic text preprocessing: lowercase, remove punctuation, tokenize, remove stopwords (optional).
-    Returns the processed text as a single string (space-separated tokens).
+    Groups responses using Semantic Vector Embeddings and Hierarchical Clustering.
+    
+    Process:
+    1. Preprocessing: Clean text.
+    2. Vectorization: Convert text -> 384-dim Vectors (SBERT).
+    3. Clustering: Group vectors that are close in space (Euclidean distance).
+    4. Visualization: Reduce to 2D using PCA.
+    5. Aggregation: Format results for the API.
     """
-    if not isinstance(text, str):
-        return ""
+    logger.info(f"🧠 Starting AI grouping for {len(raw_answers)} responses.")
 
-    text = text.lower()
-    text = text.translate(str.maketrans('', '', string.punctuation))
-    tokens = word_tokenize(text)
+    clean_answers = [ans.strip() for ans in raw_answers if ans and ans.strip()]
+    if not clean_answers:
+        return []
+    
+    if len(clean_answers) < 2:
+        return [{
+            "canonical_name": clean_answers[0],
+            "count": 1,
+            "raw_answers_in_group": clean_answers,
+            "coordinates": {"x": 0.0, "y": 0.0}
+        }]
 
-    if remove_stopwords:
-        tokens = [word for word in tokens if word not in STOPWORDS_EN and word]
-    else:
-        tokens = [word for word in tokens if word]
-
-    return " ".join(tokens)
-
-def basic_spell_check(text: str) -> str:
-    """
-    Applies basic spell checking using TextBlob.
-    """
-    if not text:
-        return ""
     try:
-        blob = TextBlob(text)
-        corrected_text = str(blob.correct())
-        return corrected_text
+        model = model_loader.get_model()
+        embeddings = model.encode(clean_answers)
     except Exception as e:
-        logger.error(f"Error during spell check for '{text}': {e}")
-        return text
+        logger.error(f"Failed to encode vectors: {e}")
+        raise e
 
-def calculate_similarity(text1: str, text2: str) -> int:
-    """
-    Calculates a similarity score between two strings using FuzzyWuzzy.
-    Returns a score between 0 and 100.
-    """
-    if not text1 or not text2:
-        return 0
-    # Using token_sort_ratio handles differences in word order and tokenizes before comparing.
-    # WRatio is also good as it tries several methods and picks the best.
-    return fuzz.WRatio(text1, text2)
+    try:
+        clustering = AgglomerativeClustering(
+            n_clusters=None, 
+            distance_threshold=distance_threshold, 
+            metric='euclidean', 
+            linkage='ward'
+        )
+        cluster_labels = clustering.fit_predict(embeddings)
+    except Exception as e:
+        logger.error(f"Clustering failed: {e}")
+        raise e
 
-# --- Main Grouping Logic ---
-def group_responses(raw_answers: List[str], similarity_threshold: int = 85) -> List[Dict[str, any]]:
-    """
-    Groups raw survey responses based on lexical similarity.
+    try:
+        n_components = 2
+        if len(clean_answers) < 2:
+             n_components = 1
+             
+        pca = PCA(n_components=n_components)
+        coords_2d = pca.fit_transform(embeddings)
+    except Exception as e:
+        logger.error(f"PCA failed: {e}")
+        coords_2d = np.zeros((len(clean_answers), 2))
 
-    Args:
-        raw_answers: A list of raw answer strings.
-        similarity_threshold: The FuzzWuzzy score (0-100) above which answers are considered similar.
+    groups_map = {}
 
-    Returns:
-        A list of dictionaries, where each dictionary represents a group:
-        {
-            "canonical_name": str,  // The representative name for the group
-            "count": int,           // Number of answers in this group
-            "raw_answers_in_group": List[str] // Original raw answers that belong to this group
-        }
-    """
-    logger.info(f"Starting grouping for {len(raw_answers)} responses with threshold {similarity_threshold}.")
+    for i, label in enumerate(cluster_labels):
+        original_text = clean_answers[i]
+        label_str = str(label)
+        
+        if label_str not in groups_map:
+            groups_map[label_str] = {
+                "raw_answers": [],
+                "vectors_indices": [] 
+            }
+        
+        groups_map[label_str]["raw_answers"].append(original_text)
+        groups_map[label_str]["vectors_indices"].append(i)
 
-    if not raw_answers:
-        return []
-
-    processed_data: List[Tuple[str, str]] = []
-    for original_ans in raw_answers:
-        if original_ans and original_ans.strip():
-            preprocessed_ans = preprocess_text(original_ans, remove_stopwords=False) 
-            processed_data.append((original_ans, preprocessed_ans))
+    final_groups = []
+    
+    for label, data in groups_map.items():
+        raw_list = data["raw_answers"]
+        
+        most_common_name = Counter(raw_list).most_common(1)[0][0]
+        indices = data["vectors_indices"]
+        group_coords = coords_2d[indices] 
+        
+        if group_coords.ndim == 1:
+            avg_x = float(group_coords[0])
+            avg_y = float(group_coords[1]) if group_coords.shape[0] > 1 else 0.0
         else:
-            logger.debug(f"Skipping empty or whitespace-only answer: '{original_ans}'")
+            avg_x = float(np.mean(group_coords[:, 0]))
+            avg_y = float(np.mean(group_coords[:, 1]))
 
-
-    logger.info(f"Preprocessed {len(processed_data)} non-empty answers.")
-    if not processed_data:
-        return []
-
-    groups: List[Dict[str, any]] = []
-    assigned_indices = [False] * len(processed_data)
-
-    for i in range(len(processed_data)):
-        if assigned_indices[i]:
-            continue 
-
-        original_ans_i, processed_ans_i = processed_data[i]
-
-        current_group_canonical_name = processed_ans_i 
-        current_group_raw_answers = [original_ans_i] 
-        assigned_indices[i] = True
-
-        for j in range(i + 1, len(processed_data)):
-            if assigned_indices[j]:
-                continue 
-
-            original_ans_j, processed_ans_j = processed_data[j]
-            similarity_score = calculate_similarity(processed_ans_i, processed_ans_j)
-
-            if similarity_score >= similarity_threshold:
-                current_group_raw_answers.append(original_ans_j)
-                assigned_indices[j] = True
-
-        groups.append({
-            "canonical_name": current_group_canonical_name,
-            "count": len(current_group_raw_answers),
-            "raw_answers_in_group": current_group_raw_answers 
+        final_groups.append({
+            "canonical_name": most_common_name,
+            "count": len(raw_list),
+            "raw_answers_in_group": raw_list,
+            "coordinates": {"x": avg_x, "y": avg_y}
         })
 
-    logger.info(f"Finished grouping. Found {len(groups)} groups.")
-
-    groups.sort(key=lambda x: x["count"], reverse=True)
-
-    return groups
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    test_answers = [
-        "Eggs", "eggs", "EGGS!", " Eggs ", "Bacon and eggs",
-        "Pancakes", "pancake", "Cereal", "Brekfast Cereal", "Toast",
-        "toast.", "Oatmeal", "Porridge", "Yogurt", "Fruit",
-        "bagel", "Doughnut", "my dog", "the dog", "a dog", "", None
-    ]
-    grouped = group_responses(test_answers, similarity_threshold=85)
-    for group in grouped:
-        print(f"Group: {group['canonical_name']} (Count: {group['count']})")
-        print(f"  Raw answers: {group['raw_answers_in_group']}")
-        print("-" * 20)
+    final_groups.sort(key=lambda x: x["count"], reverse=True)
+    
+    logger.info(f" AI Grouping finished. Found {len(final_groups)} semantic groups.")
+    return final_groups

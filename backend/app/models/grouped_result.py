@@ -13,6 +13,11 @@ class GroupedAnswer(BaseModel):
     canonical_name: str = Field(..., description="The representative name for this group")
     count: int = Field(..., description="The number of raw responses in this group")
     raw_answers: List[str] = Field(..., description="List of the raw answer strings belonging to this group")
+    coordinates: Optional[Dict[str, float]] = Field(
+        default=None, 
+        description="2D coordinates {'x': float, 'y': float} for visualization",
+        example={"x": 0.12, "y": -0.85}
+    )
 
 
 # --- Model for the overall grouped results of a survey ---

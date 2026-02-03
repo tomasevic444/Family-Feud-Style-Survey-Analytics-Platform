@@ -62,7 +62,7 @@ def process_survey_responses_task(survey_id: str):
 
 
         logger.info("Starting NLP pipeline...")
-        grouped_data_from_nlp = nlp_pipeline.group_responses(raw_answer_texts) 
+        grouped_data_from_nlp = nlp_pipeline.group_responses(raw_answer_texts)
         logger.info("NLP pipeline finished.")
 
         logger.info(f"Structuring and saving grouped results for survey ID: {survey_id}")
@@ -73,10 +73,10 @@ def process_survey_responses_task(survey_id: str):
                 GroupedAnswer(
                     canonical_name=group_dict["canonical_name"],
                     count=group_dict["count"],
-                    raw_answers=group_dict["raw_answers_in_group"] 
+                    raw_answers=group_dict["raw_answers_in_group"],
+                    coordinates=group_dict.get("coordinates") 
                 )
             )
-
         results_to_save_model = SurveyGroupedResults(
             survey_id=survey_id_obj, 
             processing_time_utc=datetime.utcnow(),
