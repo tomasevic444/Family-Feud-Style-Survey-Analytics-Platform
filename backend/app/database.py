@@ -14,15 +14,14 @@ db_manager = MongoDB()
 
 async def connect_to_mongo():
     """Establishes connection to the MongoDB database."""
-    logger.info("Connecting to MongoDB...")
+    logger.info("Connecting to MongoDB (Local/Docker)...")
     try:
-        ca_path = certifi.where()
-        logger.info(f"Using CA bundle from certifi: {ca_path}")
-        db_manager.client = AsyncIOMotorClient(
-            settings.mongo_connection_string,
-            tlsCAFile=ca_path
-        )
+        # SAMO OVO NAM TREBA ZA LOKALNU BAZU
+        db_manager.client = AsyncIOMotorClient(settings.mongo_connection_string)
+        
         db_manager.db = db_manager.client[settings.database_name]
+        
+        # Testiramo ping
         await db_manager.client.admin.command('ping')
         logger.info(f"Successfully connected to MongoDB database: {settings.database_name}")
     except Exception as e:
@@ -30,19 +29,17 @@ async def connect_to_mongo():
         raise
 
 async def close_mongo_connection():
-    """Closes the MongoDB connection."""
     logger.info("Closing MongoDB connection...")
     if db_manager.client:
         db_manager.client.close()
         logger.info("MongoDB connection closed.")
 
 def get_database() -> AsyncIOMotorDatabase:
-    """Returns the database instance."""
     if db_manager.db is None:
         raise Exception("Database not initialized. Call connect_to_mongo first.")
     return db_manager.db
 
 # --- Collection Names ---
 SURVEY_COLLECTION = "surveys"
-RESPONSE_COLLECTION = "responses" 
-GROUPED_RESULTS_COLLECTION = "grouped_results" # <-- Add this line
+RESPONSE_COLLECTION = "responses"
+GROUPED_RESULTS_COLLECTION = "grouped_results"

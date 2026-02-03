@@ -53,7 +53,6 @@ function MoveAnswerModal({
     }
   };
 
-  // Filter out the current group from the list of possible destinations
   const destinationOptions = existingGroupNames.filter(
     (name) => name !== currentGroupName
   );

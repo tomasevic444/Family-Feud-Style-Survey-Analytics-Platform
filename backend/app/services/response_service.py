@@ -4,10 +4,8 @@ from bson import ObjectId
 from datetime import datetime
 from fastapi import HTTPException, status
 from typing import List, Optional 
-# Import models
 from ..models.response import AnswerCreate, AnswerInDB
 from ..models.survey import SurveyQuestionInDB
-# Import other services or database details needed
 from . import survey_service
 from ..database import RESPONSE_COLLECTION, get_database
 
@@ -64,13 +62,11 @@ async def create_response(db: AsyncIOMotorDatabase, survey_id: str, answer: Answ
             detail="An unexpected error occurred while saving the response."
         )
 
-# --- Add this new function ---
 async def get_raw_responses_for_survey(db: AsyncIOMotorDatabase, survey_id: str) -> List[AnswerInDB]:
     """
     Retrieves all raw responses for a specific survey.
     Used for NLP processing and potential admin view.
     """
-    # Validate Survey ID format
     if not ObjectId.is_valid(survey_id):
          raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -83,5 +79,4 @@ async def get_raw_responses_for_survey(db: AsyncIOMotorDatabase, survey_id: str)
     responses_cursor = db[RESPONSE_COLLECTION].find({"survey_id": survey_id_obj}).sort("created_at", 1) 
     raw_responses = await responses_cursor.to_list(length=1000) # Limit retrieval, maybe make limit configurable?
 
-    # Convert MongoDB documents to Pydantic models
     return [AnswerInDB(**response) for response in raw_responses]

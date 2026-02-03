@@ -1,7 +1,7 @@
 # backend/app/routers/responses.py
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Path, Query # Import Query
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Path, Query 
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from typing import Annotated, List # Import List
+from typing import Annotated, List 
 
 from ..database import get_database
 from ..models.response import AnswerCreate, AnswerInDB
@@ -37,13 +37,11 @@ async def submit_answer_to_survey(
     Checks if the survey exists, is active, and if the participant limit has been reached
     before saving the response.
     """
-    # The exception handling is now largely moved into the service
     created_response = await response_service.create_response(db, survey_id, answer)
     return created_response
 
-# --- Add this new endpoint ---
 @router.get(
-    "/raw", # New path segment
+    "/raw", 
     response_model=List[AnswerInDB],
     summary="Get All Raw Responses for a Survey",
     description="Retrieves a list of all raw answers submitted for a specific survey question."
@@ -55,8 +53,5 @@ async def read_raw_responses_for_survey(
     """
     Fetches all raw responses for a given survey ID.
     """
-    # The service layer handles ID validation and fetching
     raw_responses = await response_service.get_raw_responses_for_survey(db, survey_id)
-    # Note: It returns an empty list if no responses or if survey doesn't exist
-    # You might want to add a survey existence check here if you prefer 404 for non-existent surveys
     return raw_responses

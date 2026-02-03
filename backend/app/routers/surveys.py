@@ -2,8 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import List, Optional, Annotated
-from bson import ObjectId # Import ObjectId
-import urllib.parse # For URL encoding/decoding path parameters
+from bson import ObjectId 
+import urllib.parse 
 
 from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
@@ -11,7 +11,6 @@ from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameReq
 from ..services import survey_service
 from ..celery_worker import celery_app, process_survey_responses_task
 
-# Create an API router
 router = APIRouter(
     prefix="/surveys",
     tags=["Surveys"],
@@ -162,7 +161,6 @@ async def update_survey_group_canonical_name(
     if not ObjectId.is_valid(survey_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
 
-    # Decode the group name from the URL path
     current_group_name = urllib.parse.unquote_plus(current_group_name_encoded)
 
     updated_results = await survey_service.update_group_canonical_name(
@@ -220,7 +218,6 @@ async def merge_survey_groups(
     if not ObjectId.is_valid(survey_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
 
-    # Basic validation
     if merge_request.destination_canonical_name in merge_request.source_group_names:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

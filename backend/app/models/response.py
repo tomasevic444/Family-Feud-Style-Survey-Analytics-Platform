@@ -19,18 +19,17 @@ class AnswerInDB(AnswerBase):
     model_config = ConfigDict(
         populate_by_name=True,
         arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str}, # Helps FastAPI serialize ObjectId to JSON string
+        json_encoders={ObjectId: str}, 
         json_schema_extra={
             "example": {
-                "_id": "655e4a9b3e8a4f3a8e7d1c1a", # Example ObjectId string
-                "survey_id": "654e4a9b3e8a4f3a8e7d1c0f", # Example Survey ObjectId string
+                "_id": "655e4a9b3e8a4f3a8e7d1c1a",
+                "survey_id": "654e4a9b3e8a4f3a8e7d1c0f", 
                 "answer_text": "Blue",
                 "created_at": "2023-11-22T10:00:00.000Z",
             }
         }
     )
 
-    # Use the enhanced PyObjectId from survey models for consistency
     id: PyObjectId = Field(..., alias="_id", description="Unique identifier for the answer (MongoDB ObjectId)")
     survey_id: PyObjectId = Field(..., description="ObjectId of the survey this answer belongs to")
     created_at: datetime = Field(..., description="Timestamp when the answer was submitted (UTC)")

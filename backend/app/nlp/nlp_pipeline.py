@@ -96,18 +96,12 @@ def group_responses(raw_answers: List[str], similarity_threshold: int = 85) -> L
     if not raw_answers:
         return []
 
-    # 1. Preprocess and spell-check answers
     processed_data: List[Tuple[str, str]] = []
     for original_ans in raw_answers:
-        # Only process non-empty strings
         if original_ans and original_ans.strip():
-            preprocessed_ans = preprocess_text(original_ans, remove_stopwords=False) # Keep stopwords for now
-            # Spell check can be slow, consider its impact on performance
-            # spell_checked_ans = basic_spell_check(preprocessed_ans)
-            # For now, let's use preprocessed without intense spell check for speed
+            preprocessed_ans = preprocess_text(original_ans, remove_stopwords=False) 
             processed_data.append((original_ans, preprocessed_ans))
         else:
-            # Handle empty or whitespace-only strings if necessary, or filter them earlier
             logger.debug(f"Skipping empty or whitespace-only answer: '{original_ans}'")
 
 
@@ -116,26 +110,21 @@ def group_responses(raw_answers: List[str], similarity_threshold: int = 85) -> L
         return []
 
     groups: List[Dict[str, any]] = []
-    # Keep track of answers that have already been assigned to a group
     assigned_indices = [False] * len(processed_data)
 
     for i in range(len(processed_data)):
         if assigned_indices[i]:
-            continue # Skip if this answer is already in a group
+            continue 
 
         original_ans_i, processed_ans_i = processed_data[i]
 
-        # Start a new group with the current answer
-        # The first answer in a new group becomes its initial canonical name (using its processed form)
-        # and we store its original form.
-        current_group_canonical_name = processed_ans_i # Use processed for comparison
-        current_group_raw_answers = [original_ans_i] # Store original
+        current_group_canonical_name = processed_ans_i 
+        current_group_raw_answers = [original_ans_i] 
         assigned_indices[i] = True
 
-        # Iterate through the rest of the answers to find similar ones
         for j in range(i + 1, len(processed_data)):
             if assigned_indices[j]:
-                continue # Skip if already assigned
+                continue 
 
             original_ans_j, processed_ans_j = processed_data[j]
             similarity_score = calculate_similarity(processed_ans_i, processed_ans_j)
@@ -144,11 +133,10 @@ def group_responses(raw_answers: List[str], similarity_threshold: int = 85) -> L
                 current_group_raw_answers.append(original_ans_j)
                 assigned_indices[j] = True
 
-        # Add the newly formed group to our list of groups
         groups.append({
-            "canonical_name": current_group_canonical_name, # This will be the processed version of the first item
+            "canonical_name": current_group_canonical_name,
             "count": len(current_group_raw_answers),
-            "raw_answers_in_group": current_group_raw_answers # List of original answer strings
+            "raw_answers_in_group": current_group_raw_answers 
         })
 
     logger.info(f"Finished grouping. Found {len(groups)} groups.")
@@ -157,7 +145,6 @@ def group_responses(raw_answers: List[str], similarity_threshold: int = 85) -> L
 
     return groups
 
-# --- Example Usage (for testing this file directly) ---
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     test_answers = [

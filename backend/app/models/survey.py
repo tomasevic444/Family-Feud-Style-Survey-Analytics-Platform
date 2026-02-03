@@ -21,11 +21,10 @@ def validate_objectid(value):
     raise ValueError(f"Value '{value}' is not a valid ObjectId")
 
 # --- Custom Type using Annotated with Explicit JSON Schema ---
-# This now tells Pydantic how to represent this type in JSON Schema.
 PyObjectId = Annotated[
-    ObjectId, # The actual Python type
-    BeforeValidator(validate_objectid), # How to validate incoming data
-    WithJsonSchema( # How to represent this in JSON Schema (OpenAPI)
+    ObjectId, 
+    BeforeValidator(validate_objectid), 
+    WithJsonSchema(
         {'type': 'string', 
          'example': '654e4a9b3e8a4f3a8e7d1c0f', 
          'description': 'MongoDB ObjectId as a 24-character hex string'

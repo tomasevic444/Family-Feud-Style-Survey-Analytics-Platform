@@ -12,7 +12,6 @@ function AdminPage() {
     setSelectedSurveyId(surveyId);
   };
 
-  // This function will be called by CreateSurveyForm after a new survey is made
   const refreshSurveyList = useCallback(() => {
     console.log("AdminPage: Refreshing survey list.");
     setSurveyListKey(Date.now());

@@ -46,7 +46,7 @@ async def update_survey(db: AsyncIOMotorDatabase, survey_id: str, survey_update:
         return None
 
     update_data = survey_update.model_dump(exclude_unset=True)
-    if not update_data: # If no fields to update, return current state
+    if not update_data: 
         return await get_survey_by_id(db, survey_id)
 
     update_data["updated_at"] = datetime.utcnow()
@@ -73,19 +73,15 @@ async def get_survey_results(db: AsyncIOMotorDatabase, survey_id: str) -> Option
     """
     Retrieves the processed and grouped results for a specific survey.
     """
-    # 1. Validate Survey ID format
     if not ObjectId.is_valid(survey_id):
         return None 
     survey_id_obj = ObjectId(survey_id)
 
-    # 2. Fetch the grouped results document from the 'grouped_results' collection
     results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
 
     if results_doc:
-        # Convert the MongoDB document to our Pydantic model
         return SurveyGroupedResults(**results_doc)
     else:
-        # No results found for this survey_id
         return None
     
 async def update_group_canonical_name(
@@ -102,30 +98,24 @@ async def update_group_canonical_name(
         return None 
     survey_id_obj = ObjectId(survey_id)
 
-    # MongoDB query to find the document and the specific element in the array
-    # to update. The '$' positional operator refers to the first element matched
-    # by the query in the `grouped_answers` array.
     update_result = await db[GROUPED_RESULTS_COLLECTION].update_one(
         {
             "survey_id": survey_id_obj,
-            "grouped_answers.canonical_name": current_canonical_name # Find the group by its current name
+            "grouped_answers.canonical_name": current_canonical_name 
         },
         {
             "$set": {
-                "grouped_answers.$.canonical_name": new_canonical_name, # Update the name of the matched group
-                "processing_time_utc": datetime.utcnow() # Also update the overall processing time
+                "grouped_answers.$.canonical_name": new_canonical_name, 
+                "processing_time_utc": datetime.utcnow() 
             }
         }
     )
 
     if update_result.matched_count > 0 and update_result.modified_count > 0:
-        # If successful, fetch and return the entire updated results document
         updated_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
         if updated_results_doc:
             return SurveyGroupedResults(**updated_results_doc)
     elif update_result.matched_count > 0 and update_result.modified_count == 0:
-        # Found the survey and group, but the new name was the same as the old one
-        # (or some other reason it wasn't modified). Return current state.
         current_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
         if current_results_doc:
             return SurveyGroupedResults(**current_results_doc)
@@ -147,7 +137,6 @@ async def move_answer_between_groups(
         return None
     survey_id_obj = ObjectId(survey_id)
 
-    # 1. Fetch the current grouped results document
     results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
     if not results_doc:
         return None 
@@ -159,7 +148,6 @@ async def move_answer_between_groups(
     answer_found_in_source = False
     destination_group_index = -1
 
-    # 2. Find and update the source group
     for i, group in enumerate(grouped_answers_list):
         if group.canonical_name == move_request.source_group_canonical_name:
             source_group_found = True
@@ -167,23 +155,21 @@ async def move_answer_between_groups(
                 group.raw_answers.remove(move_request.raw_answer_text)
                 group.count -= 1
                 answer_found_in_source = True
-            break # Found the source group
+            break 
 
     if not source_group_found or not answer_found_in_source:
-        # Source group or answer within source group not found
         return None 
 
-    # 3. Find or create the destination group
     for i, group in enumerate(grouped_answers_list):
         if group.canonical_name == move_request.destination_group_canonical_name:
             destination_group_index = i
             break
 
-    if destination_group_index != -1: # Destination group exists
+    if destination_group_index != -1: 
         grouped_answers_list[destination_group_index].raw_answers.append(move_request.raw_answer_text)
         grouped_answers_list[destination_group_index].count += 1
-    else: # Destination group needs to be created
-        new_group = { # Create as dict first, then convert to GroupedAnswer if needed
+    else: 
+        new_group = {
             "canonical_name": move_request.destination_group_canonical_name,
             "count": 1,
             "raw_answers": [move_request.raw_answer_text]
@@ -191,19 +177,16 @@ async def move_answer_between_groups(
         grouped_answers_list.append(new_group)
 
 
-    # 4. Clean up: Remove source group if it's now empty
     new_grouped_answers_list = [
         group for group in grouped_answers_list if not (
             group.canonical_name == move_request.source_group_canonical_name and group.count == 0
         )
     ]
-    # If working with Pydantic models, convert dicts back to models if you appended a dict
     final_grouped_answers_for_model = [
         group if isinstance(group, dict) else group.model_dump() for group in new_grouped_answers_list
     ]
 
 
-    # 5. Prepare the document for update
     updated_doc_to_save = {
         "survey_id": survey_id_obj,
         "processing_time_utc": datetime.utcnow(), 
@@ -212,7 +195,6 @@ async def move_answer_between_groups(
         "errors": current_results.errors
     }
 
-    # 6. Update the entire document in MongoDB
     update_result = await db[GROUPED_RESULTS_COLLECTION].update_one(
         {"survey_id": survey_id_obj},
         {"$set": {
@@ -221,8 +203,7 @@ async def move_answer_between_groups(
         }}
     )
 
-    if update_result.modified_count > 0 or update_result.matched_count > 0: # matched_count for when no actual modification occurred but doc was found
-        # Fetch and return the updated document to confirm changes
+    if update_result.modified_count > 0 or update_result.matched_count > 0: 
         final_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
         if final_results_doc:
             return SurveyGroupedResults(**final_results_doc)
@@ -243,41 +224,33 @@ async def merge_groups(
         return None
     survey_id_obj = ObjectId(survey_id)
 
-    # 1. Fetch the current grouped results document
     results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
     if not results_doc:
         return None
 
     grouped_answers_list = results_doc.get("grouped_answers", [])
 
-    # 2. Collect answers and details from source groups
     newly_merged_group = {
         "canonical_name": merge_request.destination_canonical_name,
         "count": 0,
         "raw_answers": []
     }
-    # List to hold groups that were NOT part of the merge
     remaining_groups = []
     source_groups_found_count = 0
 
     for group in grouped_answers_list:
         if group["canonical_name"] in merge_request.source_group_names:
-            # This group is part of the merge
             newly_merged_group["raw_answers"].extend(group["raw_answers"])
             newly_merged_group["count"] += group["count"]
             source_groups_found_count += 1
         else:
-            # This group is not being merged, so keep it
             remaining_groups.append(group)
 
-    # 3. Validate that we found all the requested source groups
     if source_groups_found_count != len(merge_request.source_group_names):
         return None 
 
-    # 4. Add the new, combined group to the list of remaining groups
     remaining_groups.append(newly_merged_group)
 
-    # 5. Update the document in MongoDB
     update_result = await db[GROUPED_RESULTS_COLLECTION].update_one(
         {"survey_id": survey_id_obj},
         {"$set": {
@@ -287,7 +260,6 @@ async def merge_groups(
     )
 
     if update_result.modified_count > 0:
-        # Fetch and return the updated document
         final_results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
         if final_results_doc:
             return SurveyGroupedResults(**final_results_doc)

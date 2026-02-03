@@ -1,6 +1,6 @@
 # backend/app/models/grouped_result.py
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional # Import Optional
+from typing import List, Dict, Any, Optional 
 from datetime import datetime
 from bson import ObjectId
 from typing_extensions import Annotated

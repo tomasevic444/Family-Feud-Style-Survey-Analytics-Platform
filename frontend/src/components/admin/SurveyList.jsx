@@ -8,7 +8,7 @@ function SurveyList({ onSelectSurvey }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    apiClient.get('/surveys/?limit=100') // Fetch up to 100 surveys
+    apiClient.get('/surveys/?limit=100')
       .then(response => {
         setSurveys(response.data);
         setIsLoading(false);

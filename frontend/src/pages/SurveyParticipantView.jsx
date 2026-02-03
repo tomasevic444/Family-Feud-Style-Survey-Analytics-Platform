@@ -13,7 +13,6 @@ function SurveyParticipantView({ surveyId = DEFAULT_SURVEY_ID }) {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Fetch Survey Question
   useEffect(() => {
     if (!surveyId) {
       setError("No Survey ID provided.");
@@ -48,7 +47,6 @@ function SurveyParticipantView({ surveyId = DEFAULT_SURVEY_ID }) {
       });
   }, [surveyId]); 
 
-  // Handle Answer Submission
   const handleSubmit = async (e) => {
     e.preventDefault(); 
     if (!answer.trim()) {
@@ -83,17 +81,14 @@ function SurveyParticipantView({ surveyId = DEFAULT_SURVEY_ID }) {
     }
   };
 
-  // --- Rendering Logic ---
   if (isLoading) {
     return <div className="text-center p-10">Loading survey...</div>;
   }
 
-  // Display error if survey couldn't be loaded or isn't active
   if (error && !survey) {
     return <div className="text-center p-10 text-red-600 bg-red-100 border border-red-400 rounded-md shadow">{error}</div>;
   }
 
-  // If survey loaded but became inactive (e.g., fetched then admin changed it - unlikely here but good practice)
   if (!survey) {
      return <div className="text-center p-10 text-orange-600 bg-orange-100 border border-orange-400 rounded-md shadow">Survey could not be loaded or is inactive.</div>;
   }

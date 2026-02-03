@@ -2,8 +2,6 @@
 from fastapi import FastAPI, status
 import logging.config
 from contextlib import asynccontextmanager
-
-# --- Add this import ---
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import connect_to_mongo, close_mongo_connection
@@ -28,24 +26,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# --- Add CORS Middleware ---
-# List of origins allowed to make requests (React dev server default port)
+
 origins = [
-    "http://localhost:5173", # Default Vite port
-    "http://localhost:5174", # Common alternative Vite port
-    "http://localhost:3000", # Default Create React App port (just in case)
-    # Add your deployed frontend URL here later if needed
+    "http://localhost:5173",
+    "http://localhost:5174", 
+    "http://localhost:3000", 
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins, # Allows specified origins
-    allow_credentials=True, # Allows cookies (if you use auth later)
-    allow_methods=["*"], # Allows all methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"], # Allows all headers
+    allow_origins=origins, 
+    allow_credentials=True, 
+    allow_methods=["*"], 
+    allow_headers=["*"], 
 )
-# --- End CORS Middleware ---
-
 
 app.include_router(surveys.router)
 app.include_router(responses.router)

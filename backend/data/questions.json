@@ -1,0 +1,32 @@
+[
+  {
+    "question": "Name a reason people might change their name.",
+    "answers": [
+      {"text": "Marriage", "count": 60},
+      {"text": "Divorce", "count": 15},
+      {"text": "Hide from police", "count": 10},
+      {"text": "Hard to spell", "count": 5},
+      {"text": "Gender change", "count": 4}
+    ]
+  },
+  {
+    "question": "Name something you associate with Superman.",
+    "answers": [
+      {"text": "Cape", "count": 35},
+      {"text": "Flying", "count": 25},
+      {"text": "Kryptonite", "count": 20},
+      {"text": "Lois Lane", "count": 10},
+      {"text": "Clark Kent", "count": 5}
+    ]
+  },
+  {
+    "question": "Name a fruit you might eat for breakfast.",
+    "answers": [
+      {"text": "Banana", "count": 30},
+      {"text": "Grapefruit", "count": 25},
+      {"text": "Strawberry", "count": 20},
+      {"text": "Apple", "count": 10},
+      {"text": "Melon", "count": 5}
+    ]
+  }
+]

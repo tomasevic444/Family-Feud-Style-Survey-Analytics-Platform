@@ -36,18 +36,17 @@ function CreateSurveyForm({ onSurveyCreated }) {
     try {
       const response = await apiClient.post('/surveys/', surveyData);
       setSuccessMessage(`Survey "${response.data.question_text}" created successfully!`);
-      // Reset form
       setQuestionText('');
       setParticipantLimit(500);
       setIsActive(false);
       setTags('');
       if (onSurveyCreated) {
-        onSurveyCreated(response.data); // Notify parent to refresh list or similar
+        onSurveyCreated(response.data);
       }
     } catch (err) {
       console.error("Error creating survey:", err);
       if (err.response && err.response.data && err.response.data.detail) {
-        if (Array.isArray(err.response.data.detail)) { // Handle Pydantic validation errors
+        if (Array.isArray(err.response.data.detail)) { 
             setError(err.response.data.detail.map(d => `${d.loc.join('.')} - ${d.msg}`).join('; '));
         } else {
             setError(`Creation failed: ${err.response.data.detail}`);

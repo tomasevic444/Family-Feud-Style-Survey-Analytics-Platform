@@ -14,7 +14,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [processingMessage, setProcessingMessage] = useState('');
   const [statusUpdateMessage, setStatusUpdateMessage] = useState('');
 
-  const [editingGroupName, setEditingGroupName] = useState(null); // Stores the current canonical_name being edited
+  const [editingGroupName, setEditingGroupName] = useState(null); 
   const [newGroupName, setNewGroupName] = useState('');
   const [isSavingGroupName, setIsSavingGroupName] = useState(false);
   const [groupNameEditError, setGroupNameEditError] = useState('');
@@ -33,8 +33,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         setError(null);
         setProcessingMessage('');
         setStatusUpdateMessage('');
-        setEditingGroupName(null); // Reset editing state
-        setGroupNameEditError(''); // Clear group edit errors
+        setEditingGroupName(null); 
+        setGroupNameEditError(''); 
         setIsMoveModalOpen(false);
         return;
     }
@@ -42,18 +42,16 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setError(null);
     setProcessingMessage('');
     setStatusUpdateMessage('');
-    setEditingGroupName(null); // Reset editing state on new survey load
-    setGroupNameEditError(''); // Clear group edit errors
+    setEditingGroupName(null); 
+    setGroupNameEditError(''); 
     setIsMoveModalOpen(false);
-    setGroupedResults(null); // Reset grouped results before fetching
+    setGroupedResults(null); 
 
 
     try {
-      // Fetch survey details
         const surveyRes = await apiClient.get(`/surveys/${surveyId}`);
         setSurvey(surveyRes.data);
 
-      // Fetch raw responses
         const rawRes = await apiClient.get(`/surveys/${surveyId}/responses/raw`);
         setRawResponses(rawRes.data);
 
@@ -84,16 +82,16 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     } finally {
         setIsLoading(false);
     }
-  }, [surveyId]); // Dependency: only re-run if surveyId changes
+  }, [surveyId]); 
 
   useEffect(() => {
     fetchSurveyDetails();
-  }, [fetchSurveyDetails]); // fetchSurveyDetails is memoized by useCallback
+  }, [fetchSurveyDetails]); 
 
   const handleProcessSurvey = async () => {
     if (!surveyId) return;
     setProcessingMessage('Processing request sent...');
-    setStatusUpdateMessage(''); // Clear other messages
+    setStatusUpdateMessage(''); 
     setError(null);
     setGroupNameEditError('');
     try {
@@ -119,10 +117,10 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
       const response = await apiClient.put(`/surveys/${idToUse}/`, {
         is_active: newStatus
       });
-      setSurvey(response.data); // Update local survey state
+      setSurvey(response.data); 
       setStatusUpdateMessage(`Survey status updated to ${newStatus ? 'Active' : 'Inactive'}.`);
       if (onSurveyUpdate) {
-        onSurveyUpdate(); // Notify parent (AdminPage) to refresh the survey list
+        onSurveyUpdate(); 
       }
     } catch (err) {
       console.error("Error updating survey status:", err);
@@ -134,7 +132,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
   const handleEditGroupName = (currentName) => {
     setEditingGroupName(currentName);
-    setNewGroupName(currentName); // Pre-fill input with current name
+    setNewGroupName(currentName); 
     setGroupNameEditError('');
     setError('');
     setProcessingMessage('');
@@ -153,7 +151,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
       return;
     }
     if (newGroupName.trim() === currentName) {
-      setEditingGroupName(null); // Nothing changed, just close editor
+      setEditingGroupName(null); 
       setNewGroupName('');
       return;
     }
@@ -162,14 +160,13 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setGroupNameEditError('');
 
     try {
-      // The current_group_name needs to be URL encoded for the path
       const encodedCurrentName = encodeURIComponent(currentName);
       const response = await apiClient.put(
         `/surveys/${surveyId}/results/groups/${encodedCurrentName}`,
         { new_canonical_name: newGroupName.trim() }
       );
-      setGroupedResults(response.data); // Update the entire groupedResults state
-      setEditingGroupName(null); // Close editor
+      setGroupedResults(response.data); 
+      setEditingGroupName(null); 
       setNewGroupName('');
     } catch (err) {
       console.error("Error updating group name:", err);
@@ -286,7 +283,6 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
             {error && !statusUpdateMessage && !processingMessage && !groupNameEditError && <p className="mt-3 text-sm text-red-700 bg-red-100 p-2 rounded">{error}</p>}
         </div>
 
-        {/* Chart Section */}
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
           <SurveyResultsChart data={groupedResults.grouped_answers} />
         ) : groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length === 0 ? (
@@ -294,11 +290,10 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               <h4 className="text-md font-semibold text-gray-700 mb-3 text-center">Survey Response Distribution</h4>
               <p className="text-sm text-gray-500 p-4 text-center">No grouped data to display in chart.</p>
           </div>
-        ) : null /* Don't render chart section if groupedResults is null (e.g., not processed) */
+        ) : null 
         }
 
 
-        {/* Grouped Results Section */}
         <div>
           <h3 className="text-lg font-semibold text-gray-700 mb-3">Grouped Results (Text)</h3>
           {groupNameEditError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{groupNameEditError}</p>}
@@ -372,7 +367,6 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
           )}
         </div>
 
-        {/* Raw Responses Section */}
         <div className="mt-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-3">Raw Responses ({rawResponses.length})</h3>
           {rawResponses.length > 0 ? (
