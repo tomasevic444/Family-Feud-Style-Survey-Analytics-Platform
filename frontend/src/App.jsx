@@ -1,13 +1,26 @@
 // src/App.jsx
 import React from 'react';
-// import SurveyParticipantView from './components/SurveyParticipantView'; 
-import AdminPage from './pages/AdminPage'; // Import the new AdminPage
+import AdminPage from './pages/AdminPage';
+import SurveyParticipantView from './pages/SurveyParticipantView';
+
+function getParticipantSurveyIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('mode') === 'participant' && params.get('surveyId')) {
+    return params.get('surveyId');
+  }
+  return null;
+}
 
 function App() {
+  const participantSurveyId = getParticipantSurveyIdFromUrl();
+
   return (
     <div className="bg-gray-100 min-h-screen">
-      {/* <SurveyParticipantView /> */}
-      <AdminPage />
+      {participantSurveyId ? (
+        <SurveyParticipantView surveyId={participantSurveyId} />
+      ) : (
+        <AdminPage />
+      )}
     </div>
   );
 }
