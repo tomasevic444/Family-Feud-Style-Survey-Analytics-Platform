@@ -1,0 +1,768 @@
+{
+  "generated_at_utc": "2026-03-30T18:17:30.147707+00:00",
+  "num_input_answers": 36,
+  "input_answers": [
+    "dog",
+    "my dog",
+    "dogs",
+    "puppy",
+    "pet dog",
+    "cat",
+    "my cat",
+    "cats",
+    "kitten",
+    "pet cat",
+    "car",
+    "my car",
+    "cars",
+    "family car",
+    "fast car",
+    "bike",
+    "bicycle",
+    "my bike",
+    "mountain bike",
+    "road bike",
+    "pizza",
+    "cheese pizza",
+    "pepperoni pizza",
+    "slice of pizza",
+    "burger",
+    "hamburger",
+    "cheeseburger",
+    "beef burger",
+    "football",
+    "soccer",
+    "football game",
+    "soccer match",
+    "movie",
+    "film",
+    "watching a movie",
+    "cinema film"
+  ],
+  "labeled": true,
+  "runs": [
+    {
+      "distance_threshold": 0.9,
+      "num_clusters": 13,
+      "groups": [
+        {
+          "canonical_name": "dog",
+          "count": 4,
+          "raw_answers_in_group": [
+            "dog",
+            "dogs",
+            "puppy",
+            "pet dog"
+          ],
+          "coordinates": {
+            "x": -0.47794967889785767,
+            "y": -0.05396593362092972
+          }
+        },
+        {
+          "canonical_name": "cat",
+          "count": 4,
+          "raw_answers_in_group": [
+            "cat",
+            "cats",
+            "kitten",
+            "pet cat"
+          ],
+          "coordinates": {
+            "x": -0.5005896091461182,
+            "y": -0.046485211700201035
+          }
+        },
+        {
+          "canonical_name": "car",
+          "count": 4,
+          "raw_answers_in_group": [
+            "car",
+            "my car",
+            "cars",
+            "fast car"
+          ],
+          "coordinates": {
+            "x": 0.036785535514354706,
+            "y": 0.328134685754776
+          }
+        },
+        {
+          "canonical_name": "pizza",
+          "count": 4,
+          "raw_answers_in_group": [
+            "pizza",
+            "cheese pizza",
+            "pepperoni pizza",
+            "slice of pizza"
+          ],
+          "coordinates": {
+            "x": 0.3624974191188812,
+            "y": -0.2932259440422058
+          }
+        },
+        {
+          "canonical_name": "soccer",
+          "count": 4,
+          "raw_answers_in_group": [
+            "football",
+            "soccer",
+            "football game",
+            "soccer match"
+          ],
+          "coordinates": {
+            "x": 0.12219823151826859,
+            "y": -0.14962993562221527
+          }
+        },
+        {
+          "canonical_name": "bike",
+          "count": 3,
+          "raw_answers_in_group": [
+            "bike",
+            "bicycle",
+            "my bike"
+          ],
+          "coordinates": {
+            "x": 0.24222920835018158,
+            "y": 0.5343827605247498
+          }
+        },
+        {
+          "canonical_name": "burger",
+          "count": 3,
+          "raw_answers_in_group": [
+            "burger",
+            "hamburger",
+            "beef burger"
+          ],
+          "coordinates": {
+            "x": 0.16353388130664825,
+            "y": -0.4636365473270416
+          }
+        },
+        {
+          "canonical_name": "film",
+          "count": 3,
+          "raw_answers_in_group": [
+            "movie",
+            "film",
+            "cinema film"
+          ],
+          "coordinates": {
+            "x": 0.14781232178211212,
+            "y": -0.08491172641515732
+          }
+        },
+        {
+          "canonical_name": "my cat",
+          "count": 2,
+          "raw_answers_in_group": [
+            "my dog",
+            "my cat"
+          ],
+          "coordinates": {
+            "x": -0.4686746597290039,
+            "y": 0.07912074029445648
+          }
+        },
+        {
+          "canonical_name": "road bike",
+          "count": 2,
+          "raw_answers_in_group": [
+            "mountain bike",
+            "road bike"
+          ],
+          "coordinates": {
+            "x": 0.3056870698928833,
+            "y": 0.43243223428726196
+          }
+        },
+        {
+          "canonical_name": "family car",
+          "count": 1,
+          "raw_answers_in_group": [
+            "family car"
+          ],
+          "coordinates": {
+            "x": 0.12523216009140015,
+            "y": 0.31911101937294006
+          }
+        },
+        {
+          "canonical_name": "cheeseburger",
+          "count": 1,
+          "raw_answers_in_group": [
+            "cheeseburger"
+          ],
+          "coordinates": {
+            "x": 0.22431424260139465,
+            "y": -0.31022098660469055
+          }
+        },
+        {
+          "canonical_name": "watching a movie",
+          "count": 1,
+          "raw_answers_in_group": [
+            "watching a movie"
+          ],
+          "coordinates": {
+            "x": 0.1439354568719864,
+            "y": -0.12881003320217133
+          }
+        }
+      ],
+      "same_bucket_split_pairs": 24,
+      "different_bucket_merged_pairs": 1,
+      "pairwise_total_errors": 25
+    },
+    {
+      "distance_threshold": 1.0,
+      "num_clusters": 9,
+      "groups": [
+        {
+          "canonical_name": "car",
+          "count": 5,
+          "raw_answers_in_group": [
+            "car",
+            "my car",
+            "cars",
+            "family car",
+            "fast car"
+          ],
+          "coordinates": {
+            "x": 0.054474860429763794,
+            "y": 0.32632994651794434
+          }
+        },
+        {
+          "canonical_name": "bike",
+          "count": 5,
+          "raw_answers_in_group": [
+            "bike",
+            "bicycle",
+            "my bike",
+            "mountain bike",
+            "road bike"
+          ],
+          "coordinates": {
+            "x": 0.26761236786842346,
+            "y": 0.49360257387161255
+          }
+        },
+        {
+          "canonical_name": "dog",
+          "count": 4,
+          "raw_answers_in_group": [
+            "dog",
+            "dogs",
+            "puppy",
+            "pet dog"
+          ],
+          "coordinates": {
+            "x": -0.47794967889785767,
+            "y": -0.05396593362092972
+          }
+        },
+        {
+          "canonical_name": "cat",
+          "count": 4,
+          "raw_answers_in_group": [
+            "cat",
+            "cats",
+            "kitten",
+            "pet cat"
+          ],
+          "coordinates": {
+            "x": -0.5005896091461182,
+            "y": -0.046485211700201035
+          }
+        },
+        {
+          "canonical_name": "pizza",
+          "count": 4,
+          "raw_answers_in_group": [
+            "pizza",
+            "cheese pizza",
+            "pepperoni pizza",
+            "slice of pizza"
+          ],
+          "coordinates": {
+            "x": 0.3624974191188812,
+            "y": -0.2932259440422058
+          }
+        },
+        {
+          "canonical_name": "burger",
+          "count": 4,
+          "raw_answers_in_group": [
+            "burger",
+            "hamburger",
+            "cheeseburger",
+            "beef burger"
+          ],
+          "coordinates": {
+            "x": 0.17872898280620575,
+            "y": -0.42528265714645386
+          }
+        },
+        {
+          "canonical_name": "soccer",
+          "count": 4,
+          "raw_answers_in_group": [
+            "football",
+            "soccer",
+            "football game",
+            "soccer match"
+          ],
+          "coordinates": {
+            "x": 0.12219823151826859,
+            "y": -0.14962993562221527
+          }
+        },
+        {
+          "canonical_name": "film",
+          "count": 4,
+          "raw_answers_in_group": [
+            "movie",
+            "film",
+            "watching a movie",
+            "cinema film"
+          ],
+          "coordinates": {
+            "x": 0.1468431055545807,
+            "y": -0.09588630497455597
+          }
+        },
+        {
+          "canonical_name": "my cat",
+          "count": 2,
+          "raw_answers_in_group": [
+            "my dog",
+            "my cat"
+          ],
+          "coordinates": {
+            "x": -0.4686746597290039,
+            "y": 0.07912074029445648
+          }
+        }
+      ],
+      "same_bucket_split_pairs": 8,
+      "different_bucket_merged_pairs": 1,
+      "pairwise_total_errors": 9
+    },
+    {
+      "distance_threshold": 1.1,
+      "num_clusters": 9,
+      "groups": [
+        {
+          "canonical_name": "car",
+          "count": 5,
+          "raw_answers_in_group": [
+            "car",
+            "my car",
+            "cars",
+            "family car",
+            "fast car"
+          ],
+          "coordinates": {
+            "x": 0.054474860429763794,
+            "y": 0.32632994651794434
+          }
+        },
+        {
+          "canonical_name": "bike",
+          "count": 5,
+          "raw_answers_in_group": [
+            "bike",
+            "bicycle",
+            "my bike",
+            "mountain bike",
+            "road bike"
+          ],
+          "coordinates": {
+            "x": 0.26761236786842346,
+            "y": 0.49360257387161255
+          }
+        },
+        {
+          "canonical_name": "dog",
+          "count": 4,
+          "raw_answers_in_group": [
+            "dog",
+            "dogs",
+            "puppy",
+            "pet dog"
+          ],
+          "coordinates": {
+            "x": -0.47794967889785767,
+            "y": -0.05396593362092972
+          }
+        },
+        {
+          "canonical_name": "cat",
+          "count": 4,
+          "raw_answers_in_group": [
+            "cat",
+            "cats",
+            "kitten",
+            "pet cat"
+          ],
+          "coordinates": {
+            "x": -0.5005896091461182,
+            "y": -0.046485211700201035
+          }
+        },
+        {
+          "canonical_name": "pizza",
+          "count": 4,
+          "raw_answers_in_group": [
+            "pizza",
+            "cheese pizza",
+            "pepperoni pizza",
+            "slice of pizza"
+          ],
+          "coordinates": {
+            "x": 0.3624974191188812,
+            "y": -0.2932259440422058
+          }
+        },
+        {
+          "canonical_name": "burger",
+          "count": 4,
+          "raw_answers_in_group": [
+            "burger",
+            "hamburger",
+            "cheeseburger",
+            "beef burger"
+          ],
+          "coordinates": {
+            "x": 0.17872898280620575,
+            "y": -0.42528265714645386
+          }
+        },
+        {
+          "canonical_name": "soccer",
+          "count": 4,
+          "raw_answers_in_group": [
+            "football",
+            "soccer",
+            "football game",
+            "soccer match"
+          ],
+          "coordinates": {
+            "x": 0.12219823151826859,
+            "y": -0.14962993562221527
+          }
+        },
+        {
+          "canonical_name": "film",
+          "count": 4,
+          "raw_answers_in_group": [
+            "movie",
+            "film",
+            "watching a movie",
+            "cinema film"
+          ],
+          "coordinates": {
+            "x": 0.1468431055545807,
+            "y": -0.09588630497455597
+          }
+        },
+        {
+          "canonical_name": "my cat",
+          "count": 2,
+          "raw_answers_in_group": [
+            "my dog",
+            "my cat"
+          ],
+          "coordinates": {
+            "x": -0.4686746597290039,
+            "y": 0.07912074029445648
+          }
+        }
+      ],
+      "same_bucket_split_pairs": 8,
+      "different_bucket_merged_pairs": 1,
+      "pairwise_total_errors": 9
+    },
+    {
+      "distance_threshold": 1.25,
+      "num_clusters": 8,
+      "groups": [
+        {
+          "canonical_name": "dog",
+          "count": 6,
+          "raw_answers_in_group": [
+            "dog",
+            "my dog",
+            "dogs",
+            "puppy",
+            "pet dog",
+            "my cat"
+          ],
+          "coordinates": {
+            "x": -0.47485795617103577,
+            "y": -0.009603711776435375
+          }
+        },
+        {
+          "canonical_name": "car",
+          "count": 5,
+          "raw_answers_in_group": [
+            "car",
+            "my car",
+            "cars",
+            "family car",
+            "fast car"
+          ],
+          "coordinates": {
+            "x": 0.054474860429763794,
+            "y": 0.32632994651794434
+          }
+        },
+        {
+          "canonical_name": "bike",
+          "count": 5,
+          "raw_answers_in_group": [
+            "bike",
+            "bicycle",
+            "my bike",
+            "mountain bike",
+            "road bike"
+          ],
+          "coordinates": {
+            "x": 0.26761236786842346,
+            "y": 0.49360257387161255
+          }
+        },
+        {
+          "canonical_name": "cat",
+          "count": 4,
+          "raw_answers_in_group": [
+            "cat",
+            "cats",
+            "kitten",
+            "pet cat"
+          ],
+          "coordinates": {
+            "x": -0.5005896091461182,
+            "y": -0.046485211700201035
+          }
+        },
+        {
+          "canonical_name": "pizza",
+          "count": 4,
+          "raw_answers_in_group": [
+            "pizza",
+            "cheese pizza",
+            "pepperoni pizza",
+            "slice of pizza"
+          ],
+          "coordinates": {
+            "x": 0.3624974191188812,
+            "y": -0.2932259440422058
+          }
+        },
+        {
+          "canonical_name": "burger",
+          "count": 4,
+          "raw_answers_in_group": [
+            "burger",
+            "hamburger",
+            "cheeseburger",
+            "beef burger"
+          ],
+          "coordinates": {
+            "x": 0.17872898280620575,
+            "y": -0.42528265714645386
+          }
+        },
+        {
+          "canonical_name": "soccer",
+          "count": 4,
+          "raw_answers_in_group": [
+            "football",
+            "soccer",
+            "football game",
+            "soccer match"
+          ],
+          "coordinates": {
+            "x": 0.12219823151826859,
+            "y": -0.14962993562221527
+          }
+        },
+        {
+          "canonical_name": "film",
+          "count": 4,
+          "raw_answers_in_group": [
+            "movie",
+            "film",
+            "watching a movie",
+            "cinema film"
+          ],
+          "coordinates": {
+            "x": 0.1468431055545807,
+            "y": -0.09588630497455597
+          }
+        }
+      ],
+      "same_bucket_split_pairs": 4,
+      "different_bucket_merged_pairs": 5,
+      "pairwise_total_errors": 9
+    },
+    {
+      "distance_threshold": 1.5,
+      "num_clusters": 7,
+      "groups": [
+        {
+          "canonical_name": "cat",
+          "count": 10,
+          "raw_answers_in_group": [
+            "dog",
+            "my dog",
+            "dogs",
+            "puppy",
+            "pet dog",
+            "cat",
+            "my cat",
+            "cats",
+            "kitten",
+            "pet cat"
+          ],
+          "coordinates": {
+            "x": -0.48515066504478455,
+            "y": -0.024356311187148094
+          }
+        },
+        {
+          "canonical_name": "car",
+          "count": 5,
+          "raw_answers_in_group": [
+            "car",
+            "my car",
+            "cars",
+            "family car",
+            "fast car"
+          ],
+          "coordinates": {
+            "x": 0.054474860429763794,
+            "y": 0.32632994651794434
+          }
+        },
+        {
+          "canonical_name": "bike",
+          "count": 5,
+          "raw_answers_in_group": [
+            "bike",
+            "bicycle",
+            "my bike",
+            "mountain bike",
+            "road bike"
+          ],
+          "coordinates": {
+            "x": 0.26761236786842346,
+            "y": 0.49360257387161255
+          }
+        },
+        {
+          "canonical_name": "pizza",
+          "count": 4,
+          "raw_answers_in_group": [
+            "pizza",
+            "cheese pizza",
+            "pepperoni pizza",
+            "slice of pizza"
+          ],
+          "coordinates": {
+            "x": 0.3624974191188812,
+            "y": -0.2932259440422058
+          }
+        },
+        {
+          "canonical_name": "burger",
+          "count": 4,
+          "raw_answers_in_group": [
+            "burger",
+            "hamburger",
+            "cheeseburger",
+            "beef burger"
+          ],
+          "coordinates": {
+            "x": 0.17872898280620575,
+            "y": -0.42528265714645386
+          }
+        },
+        {
+          "canonical_name": "soccer",
+          "count": 4,
+          "raw_answers_in_group": [
+            "football",
+            "soccer",
+            "football game",
+            "soccer match"
+          ],
+          "coordinates": {
+            "x": 0.12219823151826859,
+            "y": -0.14962993562221527
+          }
+        },
+        {
+          "canonical_name": "film",
+          "count": 4,
+          "raw_answers_in_group": [
+            "movie",
+            "film",
+            "watching a movie",
+            "cinema film"
+          ],
+          "coordinates": {
+            "x": 0.1468431055545807,
+            "y": -0.09588630497455597
+          }
+        }
+      ],
+      "same_bucket_split_pairs": 0,
+      "different_bucket_merged_pairs": 25,
+      "pairwise_total_errors": 25
+    }
+  ],
+  "expected_buckets": [
+    "dog",
+    "dog",
+    "dog",
+    "dog",
+    "dog",
+    "cat",
+    "cat",
+    "cat",
+    "cat",
+    "cat",
+    "car",
+    "car",
+    "car",
+    "car",
+    "car",
+    "bike",
+    "bike",
+    "bike",
+    "bike",
+    "bike",
+    "pizza",
+    "pizza",
+    "pizza",
+    "pizza",
+    "burger",
+    "burger",
+    "burger",
+    "burger",
+    "football",
+    "football",
+    "football",
+    "football",
+    "movie",
+    "movie",
+    "movie",
+    "movie"
+  ]
+}

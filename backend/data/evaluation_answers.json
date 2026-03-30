@@ -1,0 +1,40 @@
+{
+  "answers": [
+    "dog",
+    "Dog",
+    "a dog",
+    "puppy",
+    "small dog",
+    "cute dog",
+
+    "cat",
+    "Cat",
+    "kitten",
+    "small cat",
+    "cute cat",
+    "house cat",
+
+    "car",
+    "cars",
+    "automobile",
+    "vehicle",
+    "family car",
+    "fast car",
+
+    "bicycle",
+    "bike",
+    "mountain bike",
+    "cycling bike",
+    "road bike",
+
+    "pizza",
+    "cheese pizza",
+    "pepperoni pizza",
+    "slice of pizza",
+
+    "burger",
+    "hamburger",
+    "cheeseburger",
+    "beef burger"
+  ]
+}

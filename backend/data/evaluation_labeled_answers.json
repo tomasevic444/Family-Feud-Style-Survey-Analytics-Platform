@@ -1,0 +1,40 @@
+{
+  "answers": [
+    {"text": "dog", "expected_bucket": "dog"},
+    {"text": "Dog", "expected_bucket": "dog"},
+    {"text": "a dog", "expected_bucket": "dog"},
+    {"text": "puppy", "expected_bucket": "dog"},
+    {"text": "small dog", "expected_bucket": "dog"},
+    {"text": "cute dog", "expected_bucket": "dog"},
+
+    {"text": "cat", "expected_bucket": "cat"},
+    {"text": "Cat", "expected_bucket": "cat"},
+    {"text": "kitten", "expected_bucket": "cat"},
+    {"text": "small cat", "expected_bucket": "cat"},
+    {"text": "cute cat", "expected_bucket": "cat"},
+    {"text": "house cat", "expected_bucket": "cat"},
+
+    {"text": "car", "expected_bucket": "car"},
+    {"text": "cars", "expected_bucket": "car"},
+    {"text": "automobile", "expected_bucket": "car"},
+    {"text": "vehicle", "expected_bucket": "car"},
+    {"text": "family car", "expected_bucket": "car"},
+    {"text": "fast car", "expected_bucket": "car"},
+
+    {"text": "bicycle", "expected_bucket": "bicycle"},
+    {"text": "bike", "expected_bucket": "bicycle"},
+    {"text": "mountain bike", "expected_bucket": "bicycle"},
+    {"text": "cycling bike", "expected_bucket": "bicycle"},
+    {"text": "road bike", "expected_bucket": "bicycle"},
+
+    {"text": "pizza", "expected_bucket": "pizza"},
+    {"text": "cheese pizza", "expected_bucket": "pizza"},
+    {"text": "pepperoni pizza", "expected_bucket": "pizza"},
+    {"text": "slice of pizza", "expected_bucket": "pizza"},
+
+    {"text": "burger", "expected_bucket": "burger"},
+    {"text": "hamburger", "expected_bucket": "burger"},
+    {"text": "cheeseburger", "expected_bucket": "burger"},
+    {"text": "beef burger", "expected_bucket": "burger"}
+  ]
+}
