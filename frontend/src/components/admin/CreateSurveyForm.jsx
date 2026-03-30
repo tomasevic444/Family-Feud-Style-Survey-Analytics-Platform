@@ -5,7 +5,7 @@ import apiClient from '../../api';
 function CreateSurveyForm({ onSurveyCreated }) {
   const [questionText, setQuestionText] = useState('');
   const [participantLimit, setParticipantLimit] = useState(500);
-  const [isActive, setIsActive] = useState(false);
+  const [isActive, setIsActive] = useState(true);
   const [tags, setTags] = useState(''); // Comma-separated string for simplicity
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
