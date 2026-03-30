@@ -9,7 +9,32 @@ from .model_loader import model_loader
 
 logger = logging.getLogger(__name__)
 
-def group_responses(raw_answers: List[str], distance_threshold: float = 1.5) -> List[Dict[str, Any]]:
+# Run metadata (single source of truth for evaluation jobs; model file still uses same id in model_loader)
+EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+PREPROCESSING_DESCRIPTOR = "strip_lowercase_collapse_ws"
+DEFAULT_DISTANCE_THRESHOLD = 1.0
+
+
+def choose_canonical_name(raw_list: List[str]) -> str:
+    """
+    Pick a short, representative label for a cluster after clustering.
+    Candidates are already preprocessed (lowercase, collapsed whitespace).
+    Tie-break: fewer words, then shorter string, then higher frequency, then lexicographic.
+    """
+    if not raw_list:
+        return ""
+    counts = Counter(raw_list)
+
+    def sort_key(candidate: str) -> tuple:
+        word_count = len(candidate.split())
+        return (word_count, len(candidate), -counts[candidate], candidate)
+
+    return min(counts.keys(), key=sort_key)
+
+
+def group_responses(
+    raw_answers: List[str], distance_threshold: float = DEFAULT_DISTANCE_THRESHOLD
+) -> List[Dict[str, Any]]:
     """
     Groups responses using Semantic Vector Embeddings and Hierarchical Clustering.
     
@@ -22,7 +47,11 @@ def group_responses(raw_answers: List[str], distance_threshold: float = 1.5) -> 
     """
     logger.info(f"🧠 Starting AI grouping for {len(raw_answers)} responses.")
 
-    clean_answers = [ans.strip() for ans in raw_answers if ans and ans.strip()]
+    clean_answers = [
+        " ".join(ans.strip().lower().split())
+        for ans in raw_answers
+        if ans and ans.strip()
+    ]
     if not clean_answers:
         return []
     
@@ -84,7 +113,7 @@ def group_responses(raw_answers: List[str], distance_threshold: float = 1.5) -> 
     for label, data in groups_map.items():
         raw_list = data["raw_answers"]
         
-        most_common_name = Counter(raw_list).most_common(1)[0][0]
+        canonical_name = choose_canonical_name(raw_list)
         indices = data["vectors_indices"]
         group_coords = coords_2d[indices] 
         
@@ -96,7 +125,7 @@ def group_responses(raw_answers: List[str], distance_threshold: float = 1.5) -> 
             avg_y = float(np.mean(group_coords[:, 1]))
 
         final_groups.append({
-            "canonical_name": most_common_name,
+            "canonical_name": canonical_name,
             "count": len(raw_list),
             "raw_answers_in_group": raw_list,
             "coordinates": {"x": avg_x, "y": avg_y}
