@@ -20,6 +20,19 @@ class GroupedAnswer(BaseModel):
     )
 
 
+class ProcessingRunHistoryEntry(BaseModel):
+    """Minimal metadata for one processing run."""
+    run_id: str = Field(..., description="Client/worker-correlated id for this run")
+    run_timestamp_utc: datetime = Field(default_factory=datetime.utcnow, description="Timestamp for this run event (UTC)")
+    status: str = Field(..., description="Run status: queued | processing | completed | completed_no_data | failed")
+    input_answer_count: Optional[int] = Field(default=None, description="Number of raw answers used in this run")
+    output_group_count: Optional[int] = Field(default=None, description="Number of output groups produced")
+    model_name: Optional[str] = Field(default=None, description="Sentence embedding model id used for this run")
+    distance_threshold: Optional[float] = Field(default=None, description="Agglomerative clustering distance threshold used")
+    preprocessing_descriptor: Optional[str] = Field(default=None, description="Preprocessing label used for this run")
+    error_summary: Optional[str] = Field(default=None, description="Short error summary when run fails")
+
+
 # --- Model for the overall grouped results of a survey ---
 class SurveyGroupedResults(BaseModel):
     """Represents the aggregated and grouped results for a survey."""
@@ -55,9 +68,18 @@ class SurveyGroupedResults(BaseModel):
 
     survey_id: PyObjectId = Field(..., description="ObjectId of the survey these results belong to")
     processing_time_utc: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when the results were generated (UTC)")
-    status: str = Field(..., description="Status of the processing ('completed', 'failed', etc.)")
+    status: str = Field(
+        ...,
+        description="Lifecycle: queued | processing | completed | completed_no_data | failed",
+    )
     grouped_answers: List[GroupedAnswer] = Field(..., description="The list of grouped answers and their counts")
     errors: List[str] = Field(default_factory=list, description="List of errors encountered during processing")
+    input_answer_count: Optional[int] = Field(default=None, description="Number of raw answers fed into clustering for this run")
+    output_group_count: Optional[int] = Field(default=None, description="Number of clusters produced")
+    model_name: Optional[str] = Field(default=None, description="Sentence embedding model id")
+    distance_threshold: Optional[float] = Field(default=None, description="Agglomerative clustering distance threshold")
+    preprocessing_descriptor: Optional[str] = Field(default=None, description="Short label for answer preprocessing")
+    processing_history: List[ProcessingRunHistoryEntry] = Field(default_factory=list, description="Most recent processing runs (newest first)")
 
 class UpdateCanonicalNameRequest(BaseModel):
     new_canonical_name: str = Field(..., min_length=1, description="The new canonical name for the group.")

@@ -3,10 +3,13 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 from datetime import datetime
 from typing import List, Optional
+from uuid import uuid4
 
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 from ..models.grouped_result import SurveyGroupedResults, MoveAnswerRequest, MergeGroupsRequest
 from ..database import SURVEY_COLLECTION, RESPONSE_COLLECTION, GROUPED_RESULTS_COLLECTION
+
+MAX_PROCESSING_HISTORY = 20
 
 async def create_survey(db: AsyncIOMotorDatabase, survey: SurveyQuestionCreate) -> SurveyQuestionInDB:
     """Creates a new survey question in the database."""
@@ -83,10 +86,71 @@ async def get_survey_results(db: AsyncIOMotorDatabase, survey_id: str) -> Option
     results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one({"survey_id": survey_id_obj})
 
     if results_doc:
+        if results_doc.get("status") is None:
+            results_doc["status"] = "completed"
+        if results_doc.get("grouped_answers") is None:
+            results_doc["grouped_answers"] = []
+        if results_doc.get("errors") is None:
+            results_doc["errors"] = []
+        if results_doc.get("processing_history") is None:
+            results_doc["processing_history"] = []
         return SurveyGroupedResults(**results_doc)
     else:
         return None
-    
+
+
+async def mark_processing_queued(db: AsyncIOMotorDatabase, survey_id: str) -> Optional[str]:
+    """Persist grouped_results row as queued before Celery picks up the task."""
+    if not ObjectId.is_valid(survey_id):
+        return None
+    survey_id_obj = ObjectId(survey_id)
+    now = datetime.utcnow()
+    run_id = str(uuid4())
+    run_doc = {
+        "run_id": run_id,
+        "run_timestamp_utc": now,
+        "status": "queued",
+        "input_answer_count": None,
+        "output_group_count": None,
+        "model_name": None,
+        "distance_threshold": None,
+        "preprocessing_descriptor": None,
+        "error_summary": None,
+    }
+    await db[GROUPED_RESULTS_COLLECTION].update_one(
+        {"survey_id": survey_id_obj},
+        {
+            "$set": {
+                "survey_id": survey_id_obj,
+                "status": "queued",
+                "processing_time_utc": now,
+                "grouped_answers": [],
+                "errors": [],
+                "input_answer_count": None,
+                "output_group_count": None,
+                "model_name": None,
+                "distance_threshold": None,
+                "preprocessing_descriptor": None,
+            }
+        },
+        upsert=True,
+    )
+    await db[GROUPED_RESULTS_COLLECTION].update_one(
+        {"survey_id": survey_id_obj},
+        {
+            "$push": {
+                "processing_history": {
+                    "$each": [run_doc],
+                    "$position": 0,
+                    "$slice": MAX_PROCESSING_HISTORY,
+                }
+            }
+        },
+        upsert=True,
+    )
+    return run_id
+
+
 async def update_group_canonical_name(
     db: AsyncIOMotorDatabase,
     survey_id: str,

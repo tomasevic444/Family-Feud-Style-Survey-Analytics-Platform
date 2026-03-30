@@ -105,11 +105,16 @@ async def delete_existing_survey(
 )
 async def trigger_response_processing(
     survey_id: Annotated[str, Path(description="The ID of the survey whose responses should be processed")],
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    
+
     if not ObjectId.is_valid(survey_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid survey ID format: {survey_id}")
-    task_result = process_survey_responses_task.delay(survey_id)
+    survey = await survey_service.get_survey_by_id(db, survey_id)
+    if survey is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found")
+    run_id = await survey_service.mark_processing_queued(db, survey_id)
+    task_result = process_survey_responses_task.delay(survey_id, run_id)
     return {"message": "Processing task queued", "task_id": task_result.id, "survey_id": survey_id}
 
 
