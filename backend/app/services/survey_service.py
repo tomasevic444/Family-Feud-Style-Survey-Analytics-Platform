@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 from ..models.grouped_result import SurveyGroupedResults, MoveAnswerRequest, MergeGroupsRequest
-from ..database import SURVEY_COLLECTION, GROUPED_RESULTS_COLLECTION 
+from ..database import SURVEY_COLLECTION, RESPONSE_COLLECTION, GROUPED_RESULTS_COLLECTION
 
 async def create_survey(db: AsyncIOMotorDatabase, survey: SurveyQuestionCreate) -> SurveyQuestionInDB:
     """Creates a new survey question in the database."""
@@ -63,10 +63,13 @@ async def update_survey(db: AsyncIOMotorDatabase, survey_id: str, survey_update:
 
 
 async def delete_survey(db: AsyncIOMotorDatabase, survey_id: str) -> bool:
-    """Deletes a survey question by its ID."""
+    """Deletes a survey question by its ID, and cascades deletion to responses and grouped results."""
     if not ObjectId.is_valid(survey_id):
         return False
-    result = await db[SURVEY_COLLECTION].delete_one({"_id": ObjectId(survey_id)})
+    survey_id_obj = ObjectId(survey_id)
+    await db[RESPONSE_COLLECTION].delete_many({"survey_id": survey_id_obj})
+    await db[GROUPED_RESULTS_COLLECTION].delete_many({"survey_id": survey_id_obj})
+    result = await db[SURVEY_COLLECTION].delete_one({"_id": survey_id_obj})
     return result.deleted_count > 0
 
 async def get_survey_results(db: AsyncIOMotorDatabase, survey_id: str) -> Optional[SurveyGroupedResults]:
