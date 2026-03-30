@@ -1,9 +1,33 @@
 // src/components/admin/SurveyDetails.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../api';
-import SurveyResultsChart from './SurveyResultsChart'; 
-import MoveAnswerModal from './MoveAnswerModal'; 
+import SurveyResultsChart from './SurveyResultsChart';
+import MoveAnswerModal from './MoveAnswerModal';
+import MergeGroupsModal from './MergeGroupsModal';
 import SemanticSpaceChart from './SemanticSpaceChart';
+
+const POLL_MS = 2500;
+
+function isActiveProcessing(status) {
+  return status === 'queued' || status === 'processing';
+}
+
+function formatUtcLabel(iso) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return iso;
+  }
+}
+
+function csvEscape(value) {
+  const s = value == null ? '' : String(value);
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [survey, setSurvey] = useState(null);
   const [rawResponses, setRawResponses] = useState([]);
@@ -24,6 +48,12 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [answerToMove, setAnswerToMove] = useState({ text: null, sourceGroup: null });
   const [isMovingAnswer, setIsMovingAnswer] = useState(false);
 
+  const [selectedForMerge, setSelectedForMerge] = useState([]);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState(null);
+  const [exportError, setExportError] = useState('');
+
 
   const fetchSurveyDetails = useCallback(async () => {
     if (!surveyId) {
@@ -36,6 +66,10 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         setEditingGroupName(null); 
         setGroupNameEditError(''); 
         setIsMoveModalOpen(false);
+        setSelectedForMerge([]);
+        setIsMergeModalOpen(false);
+        setMergeError(null);
+        setExportError('');
         return;
     }
     setIsLoading(true);
@@ -45,7 +79,11 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setEditingGroupName(null); 
     setGroupNameEditError(''); 
     setIsMoveModalOpen(false);
-    setGroupedResults(null); 
+    setGroupedResults(null);
+    setSelectedForMerge([]);
+    setIsMergeModalOpen(false);
+    setMergeError(null);
+    setExportError('');
 
 
     try {
@@ -57,16 +95,25 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
         try {
             const groupedRes = await apiClient.get(`/surveys/${surveyId}/results`);
-            if (groupedRes.data && groupedRes.data.grouped_answers) {
-                setGroupedResults(groupedRes.data);
-            } else {
-                setGroupedResults({ grouped_answers: [] }); // Set empty if no groups
+            const data = groupedRes.data;
+            setGroupedResults(data);
+            const st = data.status;
+            if (isActiveProcessing(st)) {
+                setProcessingMessage('Processing is in progress. Status updates automatically.');
+            } else if (st === 'completed_no_data') {
+                const msg = data.errors && data.errors.length ? data.errors.join(' ') : 'No answer texts to process.';
+                setProcessingMessage(msg);
+            } else if (st === 'completed' && (!data.grouped_answers || data.grouped_answers.length === 0)) {
                 setProcessingMessage('Survey results processed but no groups found.');
+            } else if (st === 'failed') {
+                setProcessingMessage('');
+            } else {
+                setProcessingMessage('');
             }
         } catch (resultsError) {
             if (resultsError.response && resultsError.response.status === 404) {
                 setGroupedResults(null);
-                setProcessingMessage('Survey results not processed yet or no results found.');
+                setProcessingMessage('No results yet. Run Process Responses to start.');
             } else {
                 console.error("Error fetching grouped results:", resultsError);
                 setError('Failed to fetch grouped results.');
@@ -82,24 +129,80 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     } finally {
         setIsLoading(false);
     }
-  }, [surveyId]); 
+  }, [surveyId]);
+
+  useEffect(() => {
+    setSelectedForMerge([]);
+    setIsMergeModalOpen(false);
+    setMergeError(null);
+  }, [surveyId]);
+
+  useEffect(() => {
+    const answers = groupedResults?.grouped_answers;
+    if (!answers?.length) return;
+    const names = new Set(answers.map((g) => g.canonical_name));
+    setSelectedForMerge((prev) => {
+      const next = prev.filter((n) => names.has(n));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [groupedResults?.grouped_answers]);
 
   useEffect(() => {
     fetchSurveyDetails();
-  }, [fetchSurveyDetails]); 
+  }, [fetchSurveyDetails]);
+
+  useEffect(() => {
+    if (!surveyId) return;
+    const st = groupedResults?.status;
+    if (!isActiveProcessing(st)) return;
+
+    const tick = async () => {
+      try {
+        const groupedRes = await apiClient.get(`/surveys/${surveyId}/results`);
+        const data = groupedRes.data;
+        setGroupedResults(data);
+        const next = data.status;
+        if (!isActiveProcessing(next)) {
+          try {
+            const rawRes = await apiClient.get(`/surveys/${surveyId}/responses/raw`);
+            setRawResponses(rawRes.data);
+          } catch (e) {
+            console.error('Error refreshing raw responses:', e);
+          }
+          if (next === 'failed') {
+            setProcessingMessage('');
+          } else if (next === 'completed_no_data') {
+            setProcessingMessage(data.errors?.length ? data.errors.join(' ') : 'No answer texts to process.');
+          } else {
+            setProcessingMessage('');
+          }
+        }
+      } catch (e) {
+        console.error('Error polling results:', e);
+      }
+    };
+
+    void tick();
+    const id = setInterval(tick, POLL_MS);
+    return () => clearInterval(id);
+  }, [surveyId, groupedResults?.status]);
 
   const handleProcessSurvey = async () => {
     if (!surveyId) return;
-    setProcessingMessage('Processing request sent...');
-    setStatusUpdateMessage(''); 
+    setProcessingMessage('Queuing processing…');
+    setStatusUpdateMessage('');
     setError(null);
     setGroupNameEditError('');
     try {
       const response = await apiClient.post(`/surveys/${surveyId}/process`);
-      setProcessingMessage(`Processing queued (Task ID: ${response.data.task_id}). Refresh after a few moments to see updated results.`);
+      setProcessingMessage(`Processing queued (task ${response.data.task_id}).`);
+      const groupedRes = await apiClient.get(`/surveys/${surveyId}/results`);
+      setGroupedResults(groupedRes.data);
+      setProcessingMessage('Processing is in progress. Status updates automatically.');
     } catch (err) {
       console.error("Error triggering processing:", err);
-      setError("Failed to trigger processing.");
+      const detail = err.response?.data?.detail;
+      setError(detail ? String(detail) : 'Failed to trigger processing.');
       setProcessingMessage('');
     }
   };
@@ -217,6 +320,115 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     }
   };
 
+  const toggleMergeSelect = (canonicalName) => {
+    setSelectedForMerge((prev) => {
+      if (prev.includes(canonicalName)) {
+        return prev.filter((n) => n !== canonicalName);
+      }
+      return [...prev, canonicalName];
+    });
+    setMergeError(null);
+  };
+
+  const handleOpenMergeModal = () => {
+    if (selectedForMerge.length < 2) return;
+    setMergeError(null);
+    setIsMergeModalOpen(true);
+  };
+
+  const handleCloseMergeModal = () => {
+    if (isMerging) return;
+    setIsMergeModalOpen(false);
+    setMergeError(null);
+  };
+
+  const handleConfirmMerge = async (destinationCanonicalName) => {
+    if (!surveyId || selectedForMerge.length < 2) return;
+    setIsMerging(true);
+    setMergeError(null);
+    try {
+      const response = await apiClient.post(`/surveys/${surveyId}/results/merge-groups`, {
+        source_group_names: [...selectedForMerge],
+        destination_canonical_name: destinationCanonicalName,
+      });
+      setGroupedResults(response.data);
+      setSelectedForMerge([]);
+      setIsMergeModalOpen(false);
+      setMergeError(null);
+    } catch (err) {
+      console.error('Error merging groups:', err);
+      const detail = err.response?.data?.detail;
+      setMergeError(detail ? String(detail) : 'Merge failed. Please try again.');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const canEditGroups =
+    groupedResults &&
+    groupedResults.status === 'completed' &&
+    groupedResults.grouped_answers &&
+    groupedResults.grouped_answers.length > 0;
+  const processingHistory = groupedResults?.processing_history || [];
+  const canExportGroupedResults =
+    groupedResults &&
+    groupedResults.grouped_answers &&
+    groupedResults.grouped_answers.length > 0;
+
+  const handleExportGroupedResultsCsv = () => {
+    setExportError('');
+    if (!canExportGroupedResults) {
+      setExportError('No grouped results available to export yet.');
+      return;
+    }
+    try {
+      const surveyIdentifier = survey?._id || survey?.id || surveyId || '';
+      const surveyQuestion = survey?.question_text || '';
+      const processingStatus = groupedResults?.status || '';
+      const processingTimestamp = groupedResults?.processing_time_utc || '';
+      const rows = groupedResults.grouped_answers.map((group) =>
+        [
+          surveyIdentifier,
+          surveyQuestion,
+          processingStatus,
+          processingTimestamp,
+          group.canonical_name,
+          group.count,
+          (group.raw_answers || []).join(' | '),
+        ]
+          .map(csvEscape)
+          .join(',')
+      );
+
+      const header = [
+        'survey_id',
+        'survey_question',
+        'processing_status',
+        'processing_time_utc',
+        'group_canonical_name',
+        'group_count',
+        'raw_answers',
+      ]
+        .map(csvEscape)
+        .join(',');
+
+      const csvContent = [header, ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeSurveyId = String(surveyIdentifier || 'survey').replace(/[^a-zA-Z0-9_-]/g, '_');
+      link.href = url;
+      link.download = `grouped-results-${safeSurveyId}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export failed:', e);
+      setExportError('Failed to export grouped results.');
+    }
+  };
+
   if (!surveyId) {
     return <div className="text-center text-gray-500 p-6 bg-white shadow-md rounded-lg">Select a survey to view its details.</div>;
   }
@@ -246,6 +458,15 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         }
       />
 
+      <MergeGroupsModal
+        show={isMergeModalOpen}
+        onClose={handleCloseMergeModal}
+        onMerge={handleConfirmMerge}
+        groupsToMerge={[...selectedForMerge].sort()}
+        apiError={mergeError}
+        isSubmitting={isMerging}
+      />
+
       <div className="bg-white shadow-md rounded-lg p-6 space-y-8">
         <div className="pb-4 border-b border-gray-200">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">{survey.question_text}</h2>
@@ -273,14 +494,103 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                 </button>
                 <button
                     onClick={handleProcessSurvey}
+                    disabled={isActiveProcessing(groupedResults?.status)}
                     className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                 >
                     Process Responses
                 </button>
             </div>
+
+            {groupedResults && (
+              <div className="mt-4 p-4 rounded-md border border-gray-200 bg-gray-50 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-gray-600">Processing status:</span>
+                  <span
+                    className={`text-sm font-semibold px-2 py-0.5 rounded ${
+                      groupedResults.status === 'completed'
+                        ? 'bg-green-100 text-green-800'
+                        : groupedResults.status === 'completed_no_data'
+                          ? 'bg-amber-100 text-amber-900'
+                          : groupedResults.status === 'failed'
+                            ? 'bg-red-100 text-red-800'
+                            : groupedResults.status === 'processing'
+                              ? 'bg-indigo-100 text-indigo-800'
+                              : groupedResults.status === 'queued'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-200 text-gray-800'
+                    }`}
+                  >
+                    {groupedResults.status === 'processing' || groupedResults.status === 'queued'
+                      ? `${groupedResults.status === 'queued' ? 'Queued' : 'Processing'}…`
+                      : groupedResults.status === 'completed_no_data'
+                        ? 'Completed (no data)'
+                        : groupedResults.status === 'failed'
+                          ? 'Failed'
+                          : groupedResults.status === 'completed'
+                            ? 'Completed'
+                            : groupedResults.status}
+                  </span>
+                  {isActiveProcessing(groupedResults.status) && (
+                    <span className="text-xs text-gray-500">Refreshing every few seconds.</span>
+                  )}
+                </div>
+                {groupedResults.status === 'failed' && groupedResults.errors && groupedResults.errors.length > 0 && (
+                  <div className="text-sm text-red-800 bg-red-50 border border-red-200 rounded p-2">
+                    {groupedResults.errors.map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                )}
+                {(groupedResults.input_answer_count != null ||
+                  groupedResults.output_group_count != null ||
+                  groupedResults.model_name ||
+                  groupedResults.distance_threshold != null ||
+                  groupedResults.preprocessing_descriptor) && (
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                    {groupedResults.processing_time_utc && (
+                      <>
+                        <dt className="text-gray-500">Last run (UTC display)</dt>
+                        <dd>{formatUtcLabel(groupedResults.processing_time_utc)}</dd>
+                      </>
+                    )}
+                    {groupedResults.input_answer_count != null && (
+                      <>
+                        <dt className="text-gray-500">Input answers</dt>
+                        <dd>{groupedResults.input_answer_count}</dd>
+                      </>
+                    )}
+                    {groupedResults.output_group_count != null && (
+                      <>
+                        <dt className="text-gray-500">Output groups</dt>
+                        <dd>{groupedResults.output_group_count}</dd>
+                      </>
+                    )}
+                    {groupedResults.model_name && (
+                      <>
+                        <dt className="text-gray-500">Model</dt>
+                        <dd className="break-all">{groupedResults.model_name}</dd>
+                      </>
+                    )}
+                    {groupedResults.distance_threshold != null && (
+                      <>
+                        <dt className="text-gray-500">Distance threshold</dt>
+                        <dd>{groupedResults.distance_threshold}</dd>
+                      </>
+                    )}
+                    {groupedResults.preprocessing_descriptor && (
+                      <>
+                        <dt className="text-gray-500">Preprocessing</dt>
+                        <dd>{groupedResults.preprocessing_descriptor}</dd>
+                      </>
+                    )}
+                  </dl>
+                )}
+              </div>
+            )}
+
             {statusUpdateMessage && <p className="mt-3 text-sm text-green-700">{statusUpdateMessage}</p>}
             {processingMessage && <p className="mt-3 text-sm text-blue-700">{processingMessage}</p>}
-            {error && !statusUpdateMessage && !processingMessage && !groupNameEditError && <p className="mt-3 text-sm text-red-700 bg-red-100 p-2 rounded">{error}</p>}
+            {error && !groupNameEditError && <p className="mt-3 text-sm text-red-700 bg-red-100 p-2 rounded">{error}</p>}
         </div>
 
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
@@ -300,7 +610,33 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
 
         <div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-3">Grouped Results (Text)</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="text-lg font-semibold text-gray-700">Grouped Results (Text)</h3>
+            {(canEditGroups || canExportGroupedResults) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportGroupedResultsCsv}
+                  disabled={!canExportGroupedResults}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-slate-600 hover:bg-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-500 disabled:opacity-50"
+                >
+                  Export CSV
+                </button>
+                <span className="text-xs text-gray-500">
+                  {selectedForMerge.length > 0 ? `${selectedForMerge.length} selected` : 'Select groups to merge'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleOpenMergeModal}
+                  disabled={selectedForMerge.length < 2 || isMerging}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-teal-500 disabled:opacity-50"
+                >
+                  Merge selected
+                </button>
+              </div>
+            )}
+          </div>
+          {exportError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{exportError}</p>}
           {groupNameEditError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{groupNameEditError}</p>}
           {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
             <div className="space-y-3 max-h-96 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200">
@@ -334,13 +670,26 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     </div>
                   ) : (
                     // --- Display State ---
-                    <div className="flex justify-between items-center">
-                      <p className="font-semibold text-blue-700">
-                        {group.canonical_name} <span className="text-xs font-normal text-gray-600">({group.count} responses)</span>
-                      </p>
+                    <div className="flex justify-between items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {canEditGroups && (
+                          <input
+                            type="checkbox"
+                            checked={selectedForMerge.includes(group.canonical_name)}
+                            onChange={() => toggleMergeSelect(group.canonical_name)}
+                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 shrink-0"
+                            aria-label={`Select group ${group.canonical_name} for merge`}
+                          />
+                        )}
+                        <p className="font-semibold text-blue-700 truncate">
+                          {group.canonical_name}{' '}
+                          <span className="text-xs font-normal text-gray-600">({group.count} responses)</span>
+                        </p>
+                      </div>
                       <button
+                        type="button"
                         onClick={() => handleEditGroupName(group.canonical_name)}
-                        className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md"
+                        className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md shrink-0"
                       >
                         Edit Name
                       </button>
@@ -386,6 +735,30 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
             <p className="text-gray-500 text-sm">No raw responses submitted yet.</p>
           )}
         </div>
+
+        {processingHistory.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold text-gray-700 mb-3">Processing History</h3>
+            <div className="space-y-2 bg-gray-50 border border-gray-200 rounded p-3 max-h-64 overflow-y-auto">
+              {processingHistory.map((run) => (
+                <div key={run.run_id} className="bg-white border border-gray-200 rounded p-2 text-xs text-gray-700">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">
+                      {run.status === 'completed_no_data' ? 'completed (no data)' : run.status}
+                    </span>
+                    <span className="text-gray-500">{formatUtcLabel(run.run_timestamp_utc)}</span>
+                  </div>
+                  <div className="mt-1 text-gray-600">
+                    in: {run.input_answer_count ?? '-'} | out: {run.output_group_count ?? '-'} | model:{' '}
+                    {run.model_name || '-'} | threshold: {run.distance_threshold ?? '-'} | prep:{' '}
+                    {run.preprocessing_descriptor || '-'}
+                  </div>
+                  {run.error_summary && <div className="mt-1 text-red-700">error: {run.error_summary}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
