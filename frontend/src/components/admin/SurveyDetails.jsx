@@ -1,5 +1,5 @@
 // src/components/admin/SurveyDetails.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../../api';
 import SurveyResultsChart from './SurveyResultsChart';
 import MoveAnswerModal from './MoveAnswerModal';
@@ -21,6 +21,42 @@ function formatUtcLabel(iso) {
   } catch {
     return iso;
   }
+}
+
+function statusLabel(status) {
+  if (status === 'processing' || status === 'queued') {
+    return status === 'queued' ? 'Queued' : 'Processing';
+  }
+  if (status === 'completed_no_data') return 'Completed (no data)';
+  if (status === 'failed') return 'Failed';
+  if (status === 'completed') return 'Completed';
+  return status || 'Unknown';
+}
+
+function StatusBadge({ status, className = '', uppercase = true }) {
+  const ring =
+    status === 'completed'
+      ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+      : status === 'completed_no_data'
+        ? 'bg-amber-50 text-amber-900 ring-amber-200'
+        : status === 'failed'
+          ? 'bg-red-50 text-red-800 ring-red-200'
+          : status === 'processing'
+            ? 'bg-indigo-50 text-indigo-800 ring-indigo-200'
+            : status === 'queued'
+              ? 'bg-sky-50 text-sky-800 ring-sky-200'
+              : 'bg-gray-100 text-gray-800 ring-gray-200';
+  const isLive = status === 'processing' || status === 'queued';
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${ring} ${
+        uppercase ? 'uppercase tracking-wide' : 'font-medium normal-case tracking-normal'
+      } ${className}`}
+    >
+      {statusLabel(status)}
+      {isLive ? '…' : ''}
+    </span>
+  );
 }
 
 function csvEscape(value) {
@@ -53,7 +89,19 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [isMerging, setIsMerging] = useState(false);
   const [mergeError, setMergeError] = useState(null);
   const [exportError, setExportError] = useState('');
+  const [participantLinkCopied, setParticipantLinkCopied] = useState(false);
 
+  const participantSurveyUrl = useMemo(() => {
+    if (!surveyId || typeof window === 'undefined') return '';
+    try {
+      const u = new URL(`${window.location.origin}${window.location.pathname}`);
+      u.searchParams.set('mode', 'participant');
+      u.searchParams.set('surveyId', surveyId);
+      return u.toString();
+    } catch {
+      return `?mode=participant&surveyId=${encodeURIComponent(surveyId)}`;
+    }
+  }, [surveyId]);
 
   const fetchSurveyDetails = useCallback(async () => {
     if (!surveyId) {
@@ -113,7 +161,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         } catch (resultsError) {
             if (resultsError.response && resultsError.response.status === 404) {
                 setGroupedResults(null);
-                setProcessingMessage('No results yet. Run Process Responses to start.');
+                setProcessingMessage('');
             } else {
                 console.error("Error fetching grouped results:", resultsError);
                 setError('Failed to fetch grouped results.');
@@ -429,12 +477,29 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     }
   };
 
+  const handleCopyParticipantLink = async () => {
+    if (!participantSurveyUrl) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(participantSurveyUrl);
+      setParticipantLinkCopied(true);
+      window.setTimeout(() => setParticipantLinkCopied(false), 2000);
+    } catch {
+      setError('Could not copy the participant link. Select the URL and copy manually.');
+    }
+  };
+
   if (!surveyId) {
     return <div className="text-center text-gray-500 p-6 bg-white shadow-md rounded-lg">Select a survey to view its details.</div>;
   }
 
   if (isLoading) {
-    return <div className="text-center p-10 bg-white shadow-md rounded-lg">Loading survey details...</div>;
+    return (
+      <div className="rounded-lg border border-gray-100 bg-white p-10 text-center shadow-md">
+        <p className="font-medium text-gray-700">Loading survey details…</p>
+        <p className="mt-2 text-xs text-gray-400">Fetching question, responses, and grouped results</p>
+      </div>
+    );
   }
   
   if (error && !survey) {
@@ -480,117 +545,128 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     Participant Limit: <span className="font-semibold">{survey.participant_limit}</span>
                 </p>
             </div>
-            <div className="flex flex-wrap gap-3 mt-4">
+            <div className="mt-4 flex flex-wrap gap-2">
                 <button
+                    type="button"
                     onClick={handleToggleActiveStatus}
                     disabled={isUpdatingStatus}
-                    className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50
+                    className={`rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50
                                 ${survey.is_active
-                                    ? 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-400'
-                                    : 'bg-green-500 hover:bg-green-600 text-white focus:ring-green-400'
+                                    ? 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-400'
+                                    : 'bg-green-500 text-white hover:bg-green-600 focus:ring-green-400'
                                 }`}
                 >
                     {isUpdatingStatus ? 'Updating...' : (survey.is_active ? 'Deactivate Survey' : 'Activate Survey')}
                 </button>
                 <button
+                    type="button"
                     onClick={handleProcessSurvey}
                     disabled={isActiveProcessing(groupedResults?.status)}
-                    className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    title={
+                      isActiveProcessing(groupedResults?.status)
+                        ? 'Wait until the current run finishes'
+                        : 'Queue NLP grouping for current responses'
+                    }
+                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
                 >
-                    Process Responses
+                    {isActiveProcessing(groupedResults?.status) ? 'Processing…' : 'Process responses'}
                 </button>
             </div>
 
-            {groupedResults && (
-              <div className="mt-4 p-4 rounded-md border border-gray-200 bg-gray-50 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-gray-600">Processing status:</span>
-                  <span
-                    className={`text-sm font-semibold px-2 py-0.5 rounded ${
-                      groupedResults.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : groupedResults.status === 'completed_no_data'
-                          ? 'bg-amber-100 text-amber-900'
-                          : groupedResults.status === 'failed'
-                            ? 'bg-red-100 text-red-800'
-                            : groupedResults.status === 'processing'
-                              ? 'bg-indigo-100 text-indigo-800'
-                              : groupedResults.status === 'queued'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-200 text-gray-800'
-                    }`}
+            {participantSurveyUrl && (
+              <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-900/90">Participant link</p>
+                <p className="mt-0.5 text-xs text-indigo-900/70">
+                  Opens answer submission in participant mode (<code className="rounded bg-white/80 px-1 text-[11px]">?mode=participant</code>).
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <code className="min-w-0 max-w-full flex-1 truncate rounded-md bg-white px-2 py-1.5 text-left text-[11px] text-gray-800 ring-1 ring-indigo-100">
+                    {participantSurveyUrl}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyParticipantLink}
+                    className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
                   >
-                    {groupedResults.status === 'processing' || groupedResults.status === 'queued'
-                      ? `${groupedResults.status === 'queued' ? 'Queued' : 'Processing'}…`
-                      : groupedResults.status === 'completed_no_data'
-                        ? 'Completed (no data)'
-                        : groupedResults.status === 'failed'
-                          ? 'Failed'
-                          : groupedResults.status === 'completed'
-                            ? 'Completed'
-                            : groupedResults.status}
-                  </span>
-                  {isActiveProcessing(groupedResults.status) && (
-                    <span className="text-xs text-gray-500">Refreshing every few seconds.</span>
+                    {participantLinkCopied ? 'Copied!' : 'Copy link'}
+                  </button>
+                  <a
+                    href={participantSurveyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 text-xs font-medium text-indigo-800 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-950"
+                  >
+                    Open
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {groupedResults ? (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-slate-50/90 to-white p-4 shadow-sm">
+                  <div className="border-b border-gray-100 pb-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Latest processing run</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <StatusBadge status={groupedResults.status} />
+                      {isActiveProcessing(groupedResults.status) && (
+                        <span className="text-xs text-gray-500">Auto-refresh on</span>
+                      )}
+                    </div>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div>
+                      <dt className="text-xs font-medium text-gray-500">Input answers</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-gray-900">
+                        {groupedResults.input_answer_count != null ? groupedResults.input_answer_count : '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-gray-500">Output groups</dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-gray-900">
+                        {groupedResults.output_group_count != null ? groupedResults.output_group_count : '—'}
+                      </dd>
+                    </div>
+                    <div className="col-span-2 sm:col-span-2">
+                      <dt className="text-xs font-medium text-gray-500">Last processing time</dt>
+                      <dd className="mt-0.5 text-sm font-medium text-gray-900">
+                        {groupedResults.processing_time_utc ? formatUtcLabel(groupedResults.processing_time_utc) : '—'}
+                      </dd>
+                    </div>
+                  </dl>
+                  {(groupedResults.model_name ||
+                    groupedResults.distance_threshold != null ||
+                    groupedResults.preprocessing_descriptor) && (
+                    <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-600">
+                      <span className="font-medium text-gray-700">Pipeline</span> · {groupedResults.model_name || '—'} ·
+                      threshold {groupedResults.distance_threshold ?? '—'} · {groupedResults.preprocessing_descriptor || '—'}
+                    </p>
                   )}
                 </div>
                 {groupedResults.status === 'failed' && groupedResults.errors && groupedResults.errors.length > 0 && (
-                  <div className="text-sm text-red-800 bg-red-50 border border-red-200 rounded p-2">
+                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                    <p className="font-semibold">Processing failed</p>
                     {groupedResults.errors.map((line, i) => (
-                      <p key={i}>{line}</p>
+                      <p key={i} className="mt-1">
+                        {line}
+                      </p>
                     ))}
                   </div>
                 )}
-                {(groupedResults.input_answer_count != null ||
-                  groupedResults.output_group_count != null ||
-                  groupedResults.model_name ||
-                  groupedResults.distance_threshold != null ||
-                  groupedResults.preprocessing_descriptor) && (
-                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
-                    {groupedResults.processing_time_utc && (
-                      <>
-                        <dt className="text-gray-500">Last run (UTC display)</dt>
-                        <dd>{formatUtcLabel(groupedResults.processing_time_utc)}</dd>
-                      </>
-                    )}
-                    {groupedResults.input_answer_count != null && (
-                      <>
-                        <dt className="text-gray-500">Input answers</dt>
-                        <dd>{groupedResults.input_answer_count}</dd>
-                      </>
-                    )}
-                    {groupedResults.output_group_count != null && (
-                      <>
-                        <dt className="text-gray-500">Output groups</dt>
-                        <dd>{groupedResults.output_group_count}</dd>
-                      </>
-                    )}
-                    {groupedResults.model_name && (
-                      <>
-                        <dt className="text-gray-500">Model</dt>
-                        <dd className="break-all">{groupedResults.model_name}</dd>
-                      </>
-                    )}
-                    {groupedResults.distance_threshold != null && (
-                      <>
-                        <dt className="text-gray-500">Distance threshold</dt>
-                        <dd>{groupedResults.distance_threshold}</dd>
-                      </>
-                    )}
-                    {groupedResults.preprocessing_descriptor && (
-                      <>
-                        <dt className="text-gray-500">Preprocessing</dt>
-                        <dd>{groupedResults.preprocessing_descriptor}</dd>
-                      </>
-                    )}
-                  </dl>
-                )}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm">
+                <p className="font-medium text-gray-800">No grouped results yet</p>
+                <p className="mt-1 text-xs text-gray-600">
+                  After responses come in, use <span className="font-semibold text-gray-800">Process responses</span> to
+                  run grouping. Status and counts will appear in the summary above.
+                </p>
               </div>
             )}
 
             {statusUpdateMessage && <p className="mt-3 text-sm text-green-700">{statusUpdateMessage}</p>}
-            {processingMessage && <p className="mt-3 text-sm text-blue-700">{processingMessage}</p>}
-            {error && !groupNameEditError && <p className="mt-3 text-sm text-red-700 bg-red-100 p-2 rounded">{error}</p>}
+            {processingMessage && <p className="mt-3 text-sm text-blue-800">{processingMessage}</p>}
+            {error && !groupNameEditError && <p className="mt-3 text-sm text-red-800 bg-red-50 border border-red-100 rounded-md p-2">{error}</p>}
         </div>
 
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
@@ -601,38 +677,55 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   </>
   
         ) : groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length === 0 ? (
-          <div className="chart-container p-4 border border-gray-300 rounded-lg shadow bg-white">
-              <h4 className="text-md font-semibold text-gray-700 mb-3 text-center">Survey Response Distribution</h4>
-              <p className="text-sm text-gray-500 p-4 text-center">No grouped data to display in chart.</p>
+          <div className="chart-container rounded-lg border border-gray-200 bg-white p-4 shadow">
+              <h4 className="text-md mb-2 text-center font-semibold text-gray-700">Survey response distribution</h4>
+              <p className="text-center text-sm text-gray-500">
+                Nothing to plot yet — the last run produced no clusters. Check the summary above or try again with more
+                answers.
+              </p>
           </div>
         ) : null 
         }
 
 
         <div>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <h3 className="text-lg font-semibold text-gray-700">Grouped Results (Text)</h3>
-            {(canEditGroups || canExportGroupedResults) && (
+          <div className="mb-3 flex flex-col gap-3 border-b border-gray-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Grouped results</h3>
+              <p className="text-xs text-gray-500">Text view · export · merge</p>
+            </div>
+            {(canEditGroups || canExportGroupedResults || groupedResults) && (
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleExportGroupedResultsCsv}
                   disabled={!canExportGroupedResults}
-                  className="px-3 py-1.5 text-xs font-medium text-white bg-slate-600 hover:bg-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-slate-500 disabled:opacity-50"
+                  title={
+                    canExportGroupedResults
+                      ? 'Download grouped answers as CSV'
+                      : 'Run processing and wait for at least one group before exporting'
+                  }
+                  className="rounded-md bg-slate-700 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Export CSV
                 </button>
-                <span className="text-xs text-gray-500">
-                  {selectedForMerge.length > 0 ? `${selectedForMerge.length} selected` : 'Select groups to merge'}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleOpenMergeModal}
-                  disabled={selectedForMerge.length < 2 || isMerging}
-                  className="px-3 py-1.5 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-teal-500 disabled:opacity-50"
-                >
-                  Merge selected
-                </button>
+                {canEditGroups && (
+                  <>
+                    <span className="hidden text-gray-300 sm:inline">|</span>
+                    <span className="text-xs text-gray-500">
+                      {selectedForMerge.length > 0 ? `${selectedForMerge.length} selected` : 'Select 2+ groups'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleOpenMergeModal}
+                      disabled={selectedForMerge.length < 2 || isMerging}
+                      title={selectedForMerge.length < 2 ? 'Select at least two groups with the checkboxes' : 'Merge into one group'}
+                      className="rounded-md bg-teal-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      Merge selected
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -715,9 +808,18 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               ))}
             </div>
           ) : groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length === 0 ? (
-            <p className="text-gray-500 text-sm">No groups found in the processed results.</p>
+            <div className="rounded-md border border-amber-100 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
+              <span className="font-medium">No groups in this run.</span>{' '}
+              <span className="text-amber-900/90">
+                See the latest processing status above — you may need more or more varied answers.
+              </span>
+            </div>
+          ) : !groupedResults ? (
+            <p className="text-sm italic text-gray-500">
+              Grouped answers will list here after the first successful processing run.
+            </p>
           ) : (
-            <p className="text-gray-500 text-sm">Results have not been processed or are unavailable.</p>
+            <p className="text-sm text-gray-500">Unable to load grouped results.</p>
           )}
         </div>
 
@@ -743,9 +845,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               {processingHistory.map((run) => (
                 <div key={run.run_id} className="bg-white border border-gray-200 rounded p-2 text-xs text-gray-700">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold">
-                      {run.status === 'completed_no_data' ? 'completed (no data)' : run.status}
-                    </span>
+                    <StatusBadge status={run.status} uppercase={false} />
                     <span className="text-gray-500">{formatUtcLabel(run.run_timestamp_utc)}</span>
                   </div>
                   <div className="mt-1 text-gray-600">
