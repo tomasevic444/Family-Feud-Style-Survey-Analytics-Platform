@@ -94,6 +94,8 @@ async def get_survey_results(db: AsyncIOMotorDatabase, survey_id: str) -> Option
             results_doc["errors"] = []
         if results_doc.get("processing_history") is None:
             results_doc["processing_history"] = []
+        if results_doc.get("similar_group_pairs") is None:
+            results_doc["similar_group_pairs"] = []
         return SurveyGroupedResults(**results_doc)
     else:
         return None
@@ -125,6 +127,7 @@ async def mark_processing_queued(db: AsyncIOMotorDatabase, survey_id: str) -> Op
                 "status": "queued",
                 "processing_time_utc": now,
                 "grouped_answers": [],
+                "similar_group_pairs": [],
                 "errors": [],
                 "input_answer_count": None,
                 "output_group_count": None,

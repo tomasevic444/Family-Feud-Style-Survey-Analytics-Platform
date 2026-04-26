@@ -18,6 +18,10 @@ class GroupedAnswer(BaseModel):
         description="2D coordinates {'x': float, 'y': float} for visualization",
         example={"x": 0.12, "y": -0.85}
     )
+    response_similarities: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Optional review metadata with answer-to-centroid cosine similarity values",
+    )
 
 
 class ProcessingRunHistoryEntry(BaseModel):
@@ -79,6 +83,10 @@ class SurveyGroupedResults(BaseModel):
     model_name: Optional[str] = Field(default=None, description="Sentence embedding model id")
     distance_threshold: Optional[float] = Field(default=None, description="Agglomerative clustering distance threshold")
     preprocessing_descriptor: Optional[str] = Field(default=None, description="Short label for answer preprocessing")
+    similar_group_pairs: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Optional review hints of semantically close output groups",
+    )
     processing_history: List[ProcessingRunHistoryEntry] = Field(default_factory=list, description="Most recent processing runs (newest first)")
 
 class UpdateCanonicalNameRequest(BaseModel):

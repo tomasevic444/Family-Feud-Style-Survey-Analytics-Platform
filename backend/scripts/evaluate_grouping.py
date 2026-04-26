@@ -113,7 +113,8 @@ def run_evaluation(
     labeled = expected_buckets is not None and len(expected_buckets) == len(answers)
 
     for t in thresholds:
-        groups = group_responses(answers, distance_threshold=t)
+        pipeline_output = group_responses(answers, distance_threshold=t)
+        groups = pipeline_output.get("grouped_answers", [])
         run: dict[str, Any] = {
             "distance_threshold": t,
             "num_clusters": len(groups),

@@ -28,7 +28,7 @@ def _run_metadata(input_count: int, output_count: int) -> dict:
         "output_group_count": output_count,
         "model_name": nlp_pipeline.EMBEDDING_MODEL_NAME,
         "distance_threshold": nlp_pipeline.DEFAULT_DISTANCE_THRESHOLD,
-        "preprocessing_descriptor": nlp_pipeline.PREPROCESSING_DESCRIPTOR,
+        "preprocessing_descriptor": f"{nlp_pipeline.PREPROCESSING_DESCRIPTOR};{nlp_pipeline.EMBEDDING_DESCRIPTOR}",
     }
 
 
@@ -40,7 +40,7 @@ def _history_patch(status: str, input_count: int | None, output_count: int | Non
         "output_group_count": output_count,
         "model_name": nlp_pipeline.EMBEDDING_MODEL_NAME,
         "distance_threshold": nlp_pipeline.DEFAULT_DISTANCE_THRESHOLD,
-        "preprocessing_descriptor": nlp_pipeline.PREPROCESSING_DESCRIPTOR,
+        "preprocessing_descriptor": f"{nlp_pipeline.PREPROCESSING_DESCRIPTOR};{nlp_pipeline.EMBEDDING_DESCRIPTOR}",
         "error_summary": error_summary,
     }
 
@@ -117,6 +117,7 @@ def process_survey_responses_task(survey_id: str, run_id: str | None = None):
                 "processing_time_utc": datetime.utcnow(),
                 "status": "completed_no_data",
                 "grouped_answers": [],
+                "similar_group_pairs": [],
                 "errors": ["No valid answer texts found to process."],
                 **_run_metadata(0, 0),
             }
@@ -139,16 +140,20 @@ def process_survey_responses_task(survey_id: str, run_id: str | None = None):
         grouped_data_from_nlp = nlp_pipeline.group_responses(raw_answer_texts)
         logger.info("NLP pipeline finished.")
 
+        grouped_answers_payload = grouped_data_from_nlp.get("grouped_answers", [])
+        similar_group_pairs = grouped_data_from_nlp.get("similar_group_pairs", [])
+
         logger.info(f"Structuring and saving grouped results for survey ID: {survey_id}")
 
         grouped_answers_models: List[GroupedAnswer] = []
-        for group_dict in grouped_data_from_nlp:
+        for group_dict in grouped_answers_payload:
             grouped_answers_models.append(
                 GroupedAnswer(
                     canonical_name=group_dict["canonical_name"],
                     count=group_dict["count"],
                     raw_answers=group_dict["raw_answers_in_group"],
-                    coordinates=group_dict.get("coordinates")
+                    coordinates=group_dict.get("coordinates"),
+                    response_similarities=group_dict.get("response_similarities", []),
                 )
             )
         n_in = len(raw_answer_texts)
@@ -166,6 +171,7 @@ def process_survey_responses_task(survey_id: str, run_id: str | None = None):
             model_name=meta["model_name"],
             distance_threshold=meta["distance_threshold"],
             preprocessing_descriptor=meta["preprocessing_descriptor"],
+            similar_group_pairs=similar_group_pairs,
         )
         document_to_save = results_to_save_model.model_dump(by_alias=True, exclude_none=True, exclude={'id'})
 
@@ -194,6 +200,7 @@ def process_survey_responses_task(survey_id: str, run_id: str | None = None):
                     "processing_time_utc": datetime.utcnow(),
                     "status": "failed",
                     "grouped_answers": [],
+                    "similar_group_pairs": [],
                     "errors": [str(e)],
                     **_run_metadata(n_in, 0),
                 }

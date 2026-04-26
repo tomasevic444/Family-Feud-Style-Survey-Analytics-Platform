@@ -422,6 +422,10 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     groupedResults &&
     groupedResults.grouped_answers &&
     groupedResults.grouped_answers.length > 0;
+  const similarGroupPairs = groupedResults?.similar_group_pairs || [];
+  const reviewHintPairs = similarGroupPairs.filter(
+    (pair) => typeof pair?.similarity === 'number' && pair.similarity >= 0.75
+  );
 
   const handleExportGroupedResultsCsv = () => {
     setExportError('');
@@ -729,6 +733,32 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               </div>
             )}
           </div>
+          {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 && (
+            <div className="mb-3 rounded-md border border-indigo-100 bg-indigo-50/50 p-3">
+              <h4 className="text-sm font-semibold text-indigo-900">Potentially similar groups</h4>
+              <p className="mt-1 text-[11px] text-indigo-900/70">
+                Review-only hints based on embedding similarity.
+              </p>
+              {reviewHintPairs.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-xs text-indigo-900/90">
+                  {reviewHintPairs.map((pair, idx) => (
+                    <li key={`${pair.source_group}-${pair.target_group}-${idx}`}>
+                      <span className="font-medium">{pair.source_group}</span> ↔{' '}
+                      <span className="font-medium">{pair.target_group}</span>{' '}
+                      <span className="text-indigo-800/80">({Math.round((pair.similarity || 0) * 100)}%)</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-indigo-900/75">
+                  No strong cross-group similarity hints (75%+ similarity) in this run.
+                </p>
+              )}
+              <p className="mt-2 text-[11px] text-indigo-900/70">
+                These are not automatic merge recommendations. Review before merging.
+              </p>
+            </div>
+          )}
           {exportError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{exportError}</p>}
           {groupNameEditError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{groupNameEditError}</p>}
           {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
@@ -792,7 +822,18 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       <ul className="text-xs text-gray-600 pl-4 list-disc mt-1 space-y-1">
                       {group.raw_answers.map((ans, i) => (
                           <li key={i} className="flex justify-between items-center">
-                            <span>{ans}</span>
+                            <span>
+                              {ans}
+                              {(() => {
+                                const simEntry = group.response_similarities?.find((item) => item.answer === ans);
+                                if (!simEntry || typeof simEntry.similarity !== 'number') return null;
+                                return (
+                                  <span className="ml-2 text-[11px] text-gray-500">
+                                    ({Math.round(simEntry.similarity * 100)}% match)
+                                  </span>
+                                );
+                              })()}
+                            </span>
                             <button
                                 onClick={() => handleOpenMoveModal(ans, group.canonical_name)}
                                 className="px-2 py-0.5 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-100 rounded-md"
