@@ -78,12 +78,23 @@ def _format_for_embedding(model_name: str, answers: List[str]) -> List[str]:
 def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tuple[np.ndarray, Dict[str, Any]]:
     n = embeddings.shape[0]
     lower = max(2, min_k)
+    # silhouette/ch/db are only valid when 2 <= k < n
     upper = min(max_k, n - 1)
-    if lower > upper:
-        lower = upper = max(2, n - 1)
+
+    if n < 3 or lower > upper:
+        return np.zeros(n, dtype=int), {
+            "min_k": lower,
+            "max_k": upper,
+            "selected_k": 1,
+            "silhouette": None,
+            "calinski_harabasz": None,
+            "davies_bouldin": None,
+        }
 
     candidates: List[Dict[str, Any]] = []
     for k in range(lower, upper + 1):
+        if k >= n:
+            continue
         km = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = km.fit_predict(embeddings)
         sil = float(silhouette_score(embeddings, labels))
@@ -98,6 +109,16 @@ def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tu
                 "davies_bouldin": db,
             }
         )
+
+    if not candidates:
+        return np.zeros(n, dtype=int), {
+            "min_k": lower,
+            "max_k": upper,
+            "selected_k": 1,
+            "silhouette": None,
+            "calinski_harabasz": None,
+            "davies_bouldin": None,
+        }
 
     sil_vals = [c["silhouette"] for c in candidates]
     ch_vals = [c["calinski_harabasz"] for c in candidates]
@@ -231,12 +252,17 @@ def group_responses(
             cluster_labels, km_meta = _cluster_labels_auto_k(embeddings, cfg.min_k, cfg.max_k)
             run_meta.update(km_meta)
         elif cfg.clustering_method == "kmeans_fixed_k":
-            fixed_k = cfg.fixed_k or 2
-            fixed_k = max(2, min(fixed_k, len(clean_answers)))
-            km = KMeans(n_clusters=fixed_k, random_state=42, n_init=10)
-            cluster_labels = km.fit_predict(embeddings)
-            run_meta["fixed_k"] = fixed_k
-            run_meta["selected_k"] = fixed_k
+            if len(clean_answers) < 2:
+                cluster_labels = np.zeros(len(clean_answers), dtype=int)
+                run_meta["selected_k"] = 1
+                run_meta["fixed_k"] = 1
+            else:
+                fixed_k = cfg.fixed_k or 2
+                fixed_k = max(2, min(fixed_k, len(clean_answers)))
+                km = KMeans(n_clusters=fixed_k, random_state=42, n_init=10)
+                cluster_labels = km.fit_predict(embeddings)
+                run_meta["fixed_k"] = fixed_k
+                run_meta["selected_k"] = fixed_k
         else:
             raise ValueError(f"Unsupported clustering method: {cfg.clustering_method}")
     except Exception as e:
