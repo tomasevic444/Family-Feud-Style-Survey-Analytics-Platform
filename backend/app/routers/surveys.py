@@ -8,6 +8,7 @@ import urllib.parse
 from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameRequest, MoveAnswerRequest,  MergeGroupsRequest
+from ..models.processing_config import ProcessingConfig
 from ..services import survey_service
 from ..celery_worker import celery_app, process_survey_responses_task
 
@@ -105,6 +106,7 @@ async def delete_existing_survey(
 )
 async def trigger_response_processing(
     survey_id: Annotated[str, Path(description="The ID of the survey whose responses should be processed")],
+    processing_config: ProcessingConfig = Body(default_factory=ProcessingConfig),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
 
@@ -113,8 +115,8 @@ async def trigger_response_processing(
     survey = await survey_service.get_survey_by_id(db, survey_id)
     if survey is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Survey with id '{survey_id}' not found")
-    run_id = await survey_service.mark_processing_queued(db, survey_id)
-    task_result = process_survey_responses_task.delay(survey_id, run_id)
+    run_id = await survey_service.mark_processing_queued(db, survey_id, processing_config)
+    task_result = process_survey_responses_task.delay(survey_id, run_id, processing_config.model_dump())
     return {"message": "Processing task queued", "task_id": task_result.id, "survey_id": survey_id}
 
 

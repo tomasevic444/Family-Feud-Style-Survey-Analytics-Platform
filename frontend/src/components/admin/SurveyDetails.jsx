@@ -64,6 +64,32 @@ function csvEscape(value) {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
+const DEFAULT_PROCESSING_CONFIG = {
+  run_label: '',
+  clustering_method: 'agglomerative_threshold',
+  distance_threshold: 1.0,
+  min_k: 2,
+  max_k: 40,
+  fixed_k: 8,
+  embedding_model: 'sentence-transformers/all-MiniLM-L6-v2',
+  excluded_words: '',
+  use_excluded_words: false,
+};
+
+function formatPipelineRun(run) {
+  const parts = [];
+  parts.push(run.clustering_method || 'agglomerative_threshold');
+  if (run.distance_threshold != null && run.clustering_method === 'agglomerative_threshold') {
+    parts.push(`threshold ${run.distance_threshold}`);
+  }
+  if (run.selected_k != null) parts.push(`selected K ${run.selected_k}`);
+  if (run.fixed_k != null && run.clustering_method === 'kmeans_fixed_k') parts.push(`fixed K ${run.fixed_k}`);
+  if (run.min_k != null && run.max_k != null && run.clustering_method === 'kmeans_auto_k') {
+    parts.push(`K range ${run.min_k}-${run.max_k}`);
+  }
+  return parts.join(' · ');
+}
+
 function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [survey, setSurvey] = useState(null);
   const [rawResponses, setRawResponses] = useState([]);
@@ -90,6 +116,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [mergeError, setMergeError] = useState(null);
   const [exportError, setExportError] = useState('');
   const [participantLinkCopied, setParticipantLinkCopied] = useState(false);
+  const [processingConfig, setProcessingConfig] = useState(DEFAULT_PROCESSING_CONFIG);
 
   const participantSurveyUrl = useMemo(() => {
     if (!surveyId || typeof window === 'undefined') return '';
@@ -118,6 +145,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         setIsMergeModalOpen(false);
         setMergeError(null);
         setExportError('');
+        setProcessingConfig(DEFAULT_PROCESSING_CONFIG);
         return;
     }
     setIsLoading(true);
@@ -132,6 +160,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setIsMergeModalOpen(false);
     setMergeError(null);
     setExportError('');
+    setProcessingConfig(DEFAULT_PROCESSING_CONFIG);
 
 
     try {
@@ -242,7 +271,25 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setError(null);
     setGroupNameEditError('');
     try {
-      const response = await apiClient.post(`/surveys/${surveyId}/process`);
+      const excludedWords = String(processingConfig.excluded_words || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const requestBody = {
+        run_label: processingConfig.run_label || null,
+        clustering_method: processingConfig.clustering_method,
+        distance_threshold: Number(processingConfig.distance_threshold),
+        min_k: Number(processingConfig.min_k),
+        max_k: Number(processingConfig.max_k),
+        fixed_k:
+          processingConfig.clustering_method === 'kmeans_fixed_k'
+            ? Number(processingConfig.fixed_k)
+            : null,
+        embedding_model: processingConfig.embedding_model,
+        excluded_words: excludedWords,
+        use_excluded_words: Boolean(processingConfig.use_excluded_words),
+      };
+      const response = await apiClient.post(`/surveys/${surveyId}/process`, requestBody);
       setProcessingMessage(`Processing queued (task ${response.data.task_id}).`);
       const groupedRes = await apiClient.get(`/surveys/${surveyId}/results`);
       setGroupedResults(groupedRes.data);
@@ -426,6 +473,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const reviewHintPairs = similarGroupPairs.filter(
     (pair) => typeof pair?.similarity === 'number' && pair.similarity >= 0.75
   );
+  const nonDefaultModel =
+    processingConfig.embedding_model !== 'sentence-transformers/all-MiniLM-L6-v2';
 
   const handleExportGroupedResultsCsv = () => {
     setExportError('');
@@ -576,6 +625,138 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     {isActiveProcessing(groupedResults?.status) ? 'Processing…' : 'Process responses'}
                 </button>
             </div>
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+              <h3 className="text-sm font-semibold text-slate-900">Processing Settings</h3>
+              <p className="mt-1 text-xs text-slate-600">Applies to the next processing run only.</p>
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="text-xs text-slate-700">
+                  Run label
+                  <input
+                    type="text"
+                    value={processingConfig.run_label}
+                    onChange={(e) =>
+                      setProcessingConfig((prev) => ({ ...prev, run_label: e.target.value }))
+                    }
+                    placeholder="MiniLM baseline, KMeans experiment, ..."
+                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-slate-700">
+                  Clustering method
+                  <select
+                    value={processingConfig.clustering_method}
+                    onChange={(e) =>
+                      setProcessingConfig((prev) => ({ ...prev, clustering_method: e.target.value }))
+                    }
+                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                  >
+                    <option value="agglomerative_threshold">Agglomerative threshold</option>
+                    <option value="kmeans_auto_k">KMeans auto-K</option>
+                    <option value="kmeans_fixed_k">KMeans fixed-K</option>
+                  </select>
+                </label>
+                {processingConfig.clustering_method === 'agglomerative_threshold' && (
+                  <label className="text-xs text-slate-700">
+                    Distance threshold
+                    <input
+                      type="number"
+                      step="0.05"
+                      value={processingConfig.distance_threshold}
+                      onChange={(e) =>
+                        setProcessingConfig((prev) => ({ ...prev, distance_threshold: e.target.value }))
+                      }
+                      className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    />
+                    <span className="mt-1 block text-[11px] text-slate-500">
+                      Lower values create more specific groups. Higher values merge more aggressively.
+                    </span>
+                  </label>
+                )}
+                {processingConfig.clustering_method === 'kmeans_auto_k' && (
+                  <>
+                    <label className="text-xs text-slate-700">
+                      Minimum clusters
+                      <input
+                        type="number"
+                        min="2"
+                        value={processingConfig.min_k}
+                        onChange={(e) => setProcessingConfig((prev) => ({ ...prev, min_k: e.target.value }))}
+                        className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      />
+                    </label>
+                    <label className="text-xs text-slate-700">
+                      Maximum clusters
+                      <input
+                        type="number"
+                        min="2"
+                        value={processingConfig.max_k}
+                        onChange={(e) => setProcessingConfig((prev) => ({ ...prev, max_k: e.target.value }))}
+                        className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      />
+                      <span className="mt-1 block text-[11px] text-slate-500">
+                        Tests multiple K values and chooses one using clustering quality metrics.
+                      </span>
+                    </label>
+                  </>
+                )}
+                {processingConfig.clustering_method === 'kmeans_fixed_k' && (
+                  <label className="text-xs text-slate-700">
+                    Specific cluster count
+                    <input
+                      type="number"
+                      min="2"
+                      value={processingConfig.fixed_k}
+                      onChange={(e) => setProcessingConfig((prev) => ({ ...prev, fixed_k: e.target.value }))}
+                      className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    />
+                    <span className="mt-1 block text-[11px] text-slate-500">
+                      Use when you already know approximately how many answer categories should exist.
+                    </span>
+                  </label>
+                )}
+                <label className="text-xs text-slate-700">
+                  Embedding model
+                  <select
+                    value={processingConfig.embedding_model}
+                    onChange={(e) =>
+                      setProcessingConfig((prev) => ({ ...prev, embedding_model: e.target.value }))
+                    }
+                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                  >
+                    <option value="sentence-transformers/all-MiniLM-L6-v2">all-MiniLM-L6-v2 — recommended / fast</option>
+                    <option value="BAAI/bge-m3">BAAI/bge-m3 — experimental / slower</option>
+                    <option value="intfloat/multilingual-e5-large-instruct">multilingual-e5-large-instruct — heavy experimental</option>
+                  </select>
+                </label>
+                <label className="text-xs text-slate-700 md:col-span-2">
+                  Excluded words
+                  <textarea
+                    value={processingConfig.excluded_words}
+                    onChange={(e) =>
+                      setProcessingConfig((prev) => ({ ...prev, excluded_words: e.target.value }))
+                    }
+                    placeholder="idk, no answer, nothing, n/a"
+                    rows={2}
+                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                  />
+                  <label className="mt-2 inline-flex items-center gap-2 text-xs text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={processingConfig.use_excluded_words}
+                      onChange={(e) =>
+                        setProcessingConfig((prev) => ({ ...prev, use_excluded_words: e.target.checked }))
+                      }
+                    />
+                    Use excluded words for this run
+                  </label>
+                </label>
+              </div>
+              {nonDefaultModel && (
+                <p className="mt-2 text-xs text-amber-700">
+                  Large models may be slower and may download on first use.
+                </p>
+              )}
+            </div>
 
             {participantSurveyUrl && (
               <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2.5">
@@ -642,8 +823,18 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     groupedResults.distance_threshold != null ||
                     groupedResults.preprocessing_descriptor) && (
                     <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-600">
-                      <span className="font-medium text-gray-700">Pipeline</span> · {groupedResults.model_name || '—'} ·
-                      threshold {groupedResults.distance_threshold ?? '—'} · {groupedResults.preprocessing_descriptor || '—'}
+                      <span className="font-medium text-gray-700">Pipeline</span> · {groupedResults.embedding_model || groupedResults.model_name || '—'} ·
+                      {formatPipelineRun(groupedResults)} · {groupedResults.preprocessing_descriptor || '—'} · {groupedResults.embedding_descriptor || '—'}
+                    </p>
+                  )}
+                  {groupedResults.excluded_answer_count != null && (
+                    <p className="mt-2 text-xs text-gray-600">
+                      Excluded answers: {groupedResults.excluded_answer_count} · Processed: {groupedResults.processed_answer_count ?? '—'}
+                    </p>
+                  )}
+                  {groupedResults.silhouette != null && (
+                    <p className="mt-1 text-xs text-gray-600">
+                      KMeans metrics · silhouette {groupedResults.silhouette} · CH {groupedResults.calinski_harabasz ?? '—'} · DB {groupedResults.davies_bouldin ?? '—'}
                     </p>
                   )}
                 </div>
@@ -890,10 +1081,36 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     <span className="text-gray-500">{formatUtcLabel(run.run_timestamp_utc)}</span>
                   </div>
                   <div className="mt-1 text-gray-600">
-                    in: {run.input_answer_count ?? '-'} | out: {run.output_group_count ?? '-'} | model:{' '}
-                    {run.model_name || '-'} | threshold: {run.distance_threshold ?? '-'} | prep:{' '}
-                    {run.preprocessing_descriptor || '-'}
+                    in: {run.input_answer_count ?? '-'} | processed: {run.processed_answer_count ?? '-'} | excluded: {run.excluded_answer_count ?? '-'} | out: {run.output_group_count ?? '-'}
                   </div>
+                  <div className="mt-1 text-gray-600">
+                    label: {run.run_label || '-'} | model: {run.embedding_model || run.model_name || '-'} | {formatPipelineRun(run)} | prep: {run.preprocessing_descriptor || '-'} | emb: {run.embedding_descriptor || '-'}
+                  </div>
+                  {(run.silhouette != null || run.calinski_harabasz != null || run.davies_bouldin != null) && (
+                    <div className="mt-1 text-gray-600">
+                      metrics: silhouette {run.silhouette ?? '-'} | CH {run.calinski_harabasz ?? '-'} | DB {run.davies_bouldin ?? '-'}
+                    </div>
+                  )}
+                  {run.excluded_words_used && run.excluded_words_used.length > 0 && (
+                    <div className="mt-1 text-gray-600">
+                      excluded words: {run.excluded_words_used.join(', ')}
+                    </div>
+                  )}
+                  {run.fixed_k != null && (
+                    <div className="mt-1 text-gray-600">
+                      fixed_k: {run.fixed_k}
+                    </div>
+                  )}
+                  {run.min_k != null && run.max_k != null && (
+                    <div className="mt-1 text-gray-600">
+                      k range: {run.min_k} - {run.max_k}
+                    </div>
+                  )}
+                  {run.selected_k != null && (
+                    <div className="mt-1 text-gray-600">
+                      selected_k: {run.selected_k}
+                    </div>
+                  )}
                   {run.error_summary && <div className="mt-1 text-red-700">error: {run.error_summary}</div>}
                 </div>
               ))}

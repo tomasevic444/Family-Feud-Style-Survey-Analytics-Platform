@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 from ..models.grouped_result import SurveyGroupedResults, MoveAnswerRequest, MergeGroupsRequest
+from ..models.processing_config import ProcessingConfig
 from ..database import SURVEY_COLLECTION, RESPONSE_COLLECTION, GROUPED_RESULTS_COLLECTION
 
 MAX_PROCESSING_HISTORY = 20
@@ -96,12 +97,18 @@ async def get_survey_results(db: AsyncIOMotorDatabase, survey_id: str) -> Option
             results_doc["processing_history"] = []
         if results_doc.get("similar_group_pairs") is None:
             results_doc["similar_group_pairs"] = []
+        if results_doc.get("excluded_words_used") is None:
+            results_doc["excluded_words_used"] = []
         return SurveyGroupedResults(**results_doc)
     else:
         return None
 
 
-async def mark_processing_queued(db: AsyncIOMotorDatabase, survey_id: str) -> Optional[str]:
+async def mark_processing_queued(
+    db: AsyncIOMotorDatabase,
+    survey_id: str,
+    processing_config: ProcessingConfig,
+) -> Optional[str]:
     """Persist grouped_results row as queued before Celery picks up the task."""
     if not ObjectId.is_valid(survey_id):
         return None
@@ -112,11 +119,25 @@ async def mark_processing_queued(db: AsyncIOMotorDatabase, survey_id: str) -> Op
         "run_id": run_id,
         "run_timestamp_utc": now,
         "status": "queued",
+        "run_label": processing_config.run_label,
         "input_answer_count": None,
+        "processed_answer_count": None,
+        "excluded_answer_count": None,
         "output_group_count": None,
         "model_name": None,
-        "distance_threshold": None,
+        "embedding_model": processing_config.embedding_model,
+        "clustering_method": processing_config.clustering_method,
+        "distance_threshold": processing_config.distance_threshold,
+        "min_k": processing_config.min_k,
+        "max_k": processing_config.max_k,
+        "fixed_k": processing_config.fixed_k,
+        "selected_k": None,
+        "silhouette": None,
+        "calinski_harabasz": None,
+        "davies_bouldin": None,
         "preprocessing_descriptor": None,
+        "embedding_descriptor": None,
+        "excluded_words_used": processing_config.excluded_words if processing_config.use_excluded_words else [],
         "error_summary": None,
     }
     await db[GROUPED_RESULTS_COLLECTION].update_one(
@@ -126,14 +147,28 @@ async def mark_processing_queued(db: AsyncIOMotorDatabase, survey_id: str) -> Op
                 "survey_id": survey_id_obj,
                 "status": "queued",
                 "processing_time_utc": now,
+                "run_label": processing_config.run_label,
                 "grouped_answers": [],
                 "similar_group_pairs": [],
                 "errors": [],
                 "input_answer_count": None,
+                "processed_answer_count": None,
+                "excluded_answer_count": None,
                 "output_group_count": None,
                 "model_name": None,
-                "distance_threshold": None,
+                "embedding_model": processing_config.embedding_model,
+                "clustering_method": processing_config.clustering_method,
+                "distance_threshold": processing_config.distance_threshold,
+                "min_k": processing_config.min_k,
+                "max_k": processing_config.max_k,
+                "fixed_k": processing_config.fixed_k,
+                "selected_k": None,
+                "silhouette": None,
+                "calinski_harabasz": None,
+                "davies_bouldin": None,
                 "preprocessing_descriptor": None,
+                "embedding_descriptor": None,
+                "excluded_words_used": processing_config.excluded_words if processing_config.use_excluded_words else [],
             }
         },
         upsert=True,
