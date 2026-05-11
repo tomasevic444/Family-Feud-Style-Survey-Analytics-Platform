@@ -1,3 +1,145 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight text-slate-900;
+  }
+
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6366f1;
+    border-radius: 6px;
+  }
+
+  /* Subtle, modern scrollbars */
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 116, 139, 0.35);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(71, 85, 105, 0.55);
+  }
+  *::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+@layer components {
+  .ff-card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-card;
+  }
+
+  .ff-card-hoverable {
+    @apply ff-card transition hover:shadow-card-lift hover:-translate-y-[1px];
+  }
+
+  .ff-section-title {
+    @apply text-base font-semibold text-slate-900;
+  }
+
+  .ff-section-subtitle {
+    @apply text-xs text-slate-500;
+  }
+
+  .ff-btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .ff-btn-primary {
+    @apply ff-btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800;
+  }
+  .ff-btn-secondary {
+    @apply ff-btn bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 hover:text-slate-900;
+  }
+  .ff-btn-ghost {
+    @apply ff-btn text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .ff-btn-danger {
+    @apply ff-btn bg-rose-600 text-white shadow-sm hover:bg-rose-700;
+  }
+  .ff-btn-success {
+    @apply ff-btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-700;
+  }
+
+  .ff-input {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:bg-slate-100 disabled:text-slate-500;
+  }
+
+  .ff-label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500;
+  }
+
+  .ff-chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 ring-1 ring-inset ring-slate-200;
+  }
+
+  .ff-divider {
+    @apply h-px w-full bg-slate-200;
+  }
+
+  /* Decorative grid background for the app shell */
+  .ff-app-bg {
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.08), transparent 50%),
+      radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.06), transparent 50%),
+      linear-gradient(to bottom, #f8fafc, #f1f5f9);
+    background-attachment: fixed;
+  }
+
+  /* Skeleton loader */
+  .ff-skeleton {
+    @apply relative overflow-hidden rounded-md bg-slate-200/70;
+  }
+  .ff-skeleton::after {
+    content: "";
+    @apply absolute inset-0 animate-shimmer bg-shimmer-stripe;
+    background-size: 200% 100%;
+  }
+}
+
+/* d3 tooltip baseline (kept globally because tooltips are appended to body) */
+.d3-tooltip,
+.d3-tooltip-semantic {
+  pointer-events: none;
+  position: absolute;
+  z-index: 60;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background-color: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.25;
+  box-shadow: 0 10px 25px -10px rgba(15, 23, 42, 0.4), 0 4px 10px -2px rgba(15, 23, 42, 0.18);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+.d3-tooltip strong,
+.d3-tooltip-semantic strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+.d3-tooltip .ff-tt-meta,
+.d3-tooltip-semantic .ff-tt-meta {
+  color: #cbd5e1;
+  font-size: 11px;
+  margin-top: 2px;
+}

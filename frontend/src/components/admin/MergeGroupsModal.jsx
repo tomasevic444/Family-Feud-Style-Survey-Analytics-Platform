@@ -1,13 +1,6 @@
 // src/components/admin/MergeGroupsModal.jsx
 import React, { useState, useEffect } from 'react';
 
-const ModalBackdrop = ({ onClick }) => (
-  <div
-    className="fixed inset-0 bg-black bg-opacity-50 z-40"
-    onClick={onClick}
-  ></div>
-);
-
 function MergeGroupsModal({
   show,
   onClose,
@@ -27,6 +20,15 @@ function MergeGroupsModal({
       setValidationError('');
     }
   }, [show, mergeKey, groupsToMerge.length]);
+
+  useEffect(() => {
+    if (!show) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !isSubmitting) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [show, isSubmitting, onClose]);
 
   if (!show || groupsToMerge.length < 2) {
     return null;
@@ -51,25 +53,73 @@ function MergeGroupsModal({
   const displayError = validationError || apiError;
 
   return (
-    <>
-      <ModalBackdrop onClick={isSubmitting ? undefined : onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-xl z-50 w-full max-w-lg">
-        <h3 className="text-lg font-semibold mb-2">Merge Groups</h3>
-        <p className="text-sm text-gray-600 mb-4">You are about to merge the following groups:</p>
-        <ul className="list-disc pl-5 mb-4 text-sm bg-gray-50 p-3 rounded">
-          {groupsToMerge.map((name) => (
-            <li key={name}>{name}</li>
-          ))}
-        </ul>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="merge-modal-title"
+    >
+      <div
+        className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm"
+        onClick={isSubmitting ? undefined : onClose}
+      />
+      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-card-lift ring-1 ring-slate-200 animate-scale-in">
+        <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-4">
+          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+              <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+              <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+              <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+              <path d="M9 12h6" />
+            </svg>
+          </span>
+          <div className="flex-1">
+            <h3 id="merge-modal-title" className="text-base font-semibold text-slate-900">
+              Merge groups
+            </h3>
+            <p className="ff-section-subtitle">
+              Combine multiple groups into a single label. This affects the active result only.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="ff-btn-ghost px-2 py-1"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
 
-        <div className="space-y-4">
+        <div className="px-5 py-4 space-y-4">
           <div>
-            <label htmlFor="mergedGroupName" className="block text-sm font-medium text-gray-700">
+            <p className="ff-label">Groups being merged</p>
+            <ul className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              {groupsToMerge.map((name) => (
+                <li key={name} className="flex items-center gap-2 text-sm text-slate-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span className="truncate">{name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <label htmlFor="mergedGroupName" className="ff-label">
               Merged group name
             </label>
-            <p className="text-xs text-gray-500 mt-1 mb-1">
-              Must be a new label (not identical to any of the groups listed above).
-            </p>
             <input
               type="text"
               id="mergedGroupName"
@@ -79,21 +129,27 @@ function MergeGroupsModal({
                 setValidationError('');
               }}
               disabled={isSubmitting}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
+              className="ff-input"
               placeholder="e.g. Animals (combined)"
+              autoFocus
             />
+            <p className="mt-1 text-xs text-slate-500">
+              Must be a new label, not identical to any of the groups above.
+            </p>
             {displayError && (
-              <p className="mt-2 text-sm text-red-700 bg-red-50 border border-red-100 rounded p-2">{displayError}</p>
+              <p className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-800">
+                {displayError}
+              </p>
             )}
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end space-x-3">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md disabled:opacity-50"
+            className="ff-btn-secondary"
           >
             Cancel
           </button>
@@ -101,13 +157,23 @@ function MergeGroupsModal({
             type="button"
             onClick={handleMergeClick}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50"
+            className="ff-btn-success"
           >
-            {isSubmitting ? 'Merging…' : 'Confirm Merge'}
+            {isSubmitting ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                Merging…
+              </>
+            ) : (
+              'Confirm merge'
+            )}
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

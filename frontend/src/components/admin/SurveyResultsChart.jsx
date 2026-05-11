@@ -1,113 +1,257 @@
 // src/components/admin/SurveyResultsChart.jsx
-import React, { useEffect, useRef } from 'react';
-import * as d3 from 'd3'; 
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import * as d3 from 'd3';
+
+const PALETTE = [
+  '#6366f1', // indigo
+  '#22c55e', // green
+  '#f59e0b', // amber
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#a855f7', // violet
+  '#f43f5e', // rose
+  '#14b8a6', // teal
+  '#eab308', // yellow
+  '#0ea5e9', // sky
+];
+
+function truncate(label, max = 14) {
+  if (!label) return '';
+  return label.length > max ? `${label.slice(0, max - 1)}…` : label;
+}
 
 const SurveyResultsChart = ({ data }) => {
-  const d3Container = useRef(null); 
+  const containerRef = useRef(null);
+  const svgRef = useRef(null);
+  const [size, setSize] = useState({ width: 600, height: 360 });
+
+  const sortedData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    return data
+      .filter((d) => d && typeof d.count === 'number' && Number.isFinite(d.count))
+      .slice()
+      .sort((a, b) => b.count - a.count);
+  }, [data]);
+
+  useLayoutEffect(() => {
+    if (!containerRef.current) return undefined;
+    const el = containerRef.current;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.max(280, Math.floor(entry.contentRect.width));
+        setSize((prev) => (prev.width === w ? prev : { ...prev, width: w }));
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
-    if (data && d3Container.current && data.length > 0) {
-      const svg = d3.select(d3Container.current);
-      svg.selectAll("*").remove();
+    if (!svgRef.current) return undefined;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll('*').remove();
+    d3.select('body').selectAll('.d3-tooltip').remove();
 
-      const margin = { top: 30, right: 30, bottom: 120, left: 60 }; 
-      const width = 500 - margin.left - margin.right; 
-      const height = 350 - margin.top - margin.bottom;
+    if (sortedData.length === 0) return undefined;
 
-      const chart = svg
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
+    const margin = { top: 16, right: 16, bottom: 56, left: 44 };
+    const width = size.width;
+    const height = size.height;
+    const innerW = Math.max(80, width - margin.left - margin.right);
+    const innerH = Math.max(80, height - margin.top - margin.bottom);
 
-      const xScale = d3.scaleBand()
-        .domain(data.map(d => d.canonical_name))
-        .range([0, width])
-        .padding(0.2); 
+    svg.attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
 
-      const yScale = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.count) || 10])
-        .range([height, 0]); 
+    const g = svg
+      .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
 
-      chart.append("g")
-        .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(xScale))
-        .selectAll("text") 
-          .style("text-anchor", "end")
-          .attr("dx", "-.8em")
-          .attr("dy", ".15em")
-          .attr("transform", "rotate(-45)");
+    const xScale = d3
+      .scaleBand()
+      .domain(sortedData.map((d) => d.canonical_name))
+      .range([0, innerW])
+      .padding(0.28);
 
-      chart.append("g")
-        .call(d3.axisLeft(yScale));
-      chart.append("text")
-        .attr("transform", "rotate(-90)")
-        .attr("y", 0 - margin.left + 15) 
-        .attr("x", 0 - (height / 2))
-        .attr("dy", "1em")
-        .style("text-anchor", "middle")
-        .style("font-size", "12px")
-        .style("fill", "#333")
-        .text("Number of Responses");
+    const maxCount = d3.max(sortedData, (d) => d.count) || 1;
+    const yScale = d3
+      .scaleLinear()
+      .domain([0, maxCount])
+      .nice()
+      .range([innerH, 0]);
 
-      chart.selectAll(".bar")
-        .data(data)
-        .enter()
-        .append("rect")
-          .attr("class", "bar")
-          .attr("x", d => xScale(d.canonical_name))
-          .attr("y", d => yScale(d.count))
-          .attr("width", xScale.bandwidth())
-          .attr("height", d => height - yScale(d.count))
-          .attr("fill", "steelblue")
-        .on("mouseover", function(event, d) { 
-            d3.select(this).attr("fill", "orange");
-            tooltip.transition()
-                .duration(200)
-                .style("opacity", .9);
-            tooltip.html(`<strong>${d.canonical_name}</strong><br/>Count: ${d.count}`)
-                .style("left", (event.pageX + 5) + "px")
-                .style("top", (event.pageY - 28) + "px");
-        })
-        .on("mouseout", function(d) {
-            d3.select(this).attr("fill", "steelblue");
-            tooltip.transition()
-                .duration(500)
-                .style("opacity", 0);
-        });
+    const color = d3.scaleOrdinal().domain(sortedData.map((d) => d.canonical_name)).range(PALETTE);
 
-      const tooltip = d3.select("body").append("div")
-        .attr("class", "d3-tooltip")
-        .style("position", "absolute")
-        .style("z-index", "10")
-        .style("visibility", "visible") 
-        .style("opacity", 0)
-        .style("background-color", "white")
-        .style("border", "solid")
-        .style("border-width", "1px")
-        .style("border-radius", "5px")
-        .style("padding", "10px")
-        .style("font-size", "12px");
+    // Gridlines
+    g.append('g')
+      .attr('class', 'ff-grid')
+      .call(
+        d3
+          .axisLeft(yScale)
+          .ticks(Math.min(6, Math.max(3, Math.floor(innerH / 40))))
+          .tickSize(-innerW)
+          .tickFormat(() => '')
+      )
+      .call((sel) => sel.select('.domain').remove())
+      .call((sel) =>
+        sel
+          .selectAll('line')
+          .attr('stroke', '#e2e8f0')
+          .attr('stroke-dasharray', '2 4')
+      );
 
+    // X axis
+    const xAxis = g
+      .append('g')
+      .attr('transform', `translate(0,${innerH})`)
+      .call(d3.axisBottom(xScale).tickSizeOuter(0));
+    xAxis.select('.domain').attr('stroke', '#cbd5e1');
+    xAxis
+      .selectAll('text')
+      .attr('fill', '#475569')
+      .attr('font-size', 11)
+      .attr('font-family', 'inherit')
+      .each(function (label) {
+        d3.select(this).text(truncate(String(label), 12));
+      })
+      .attr('text-anchor', 'end')
+      .attr('transform', 'rotate(-30)')
+      .attr('dx', '-0.4em')
+      .attr('dy', '0.6em');
+    xAxis.selectAll('.tick line').attr('stroke', '#cbd5e1');
 
-    } else if (d3Container.current) {
-        d3.select(d3Container.current).selectAll("*").remove();
-    }
+    // Y axis
+    const yAxis = g
+      .append('g')
+      .call(
+        d3
+          .axisLeft(yScale)
+          .ticks(Math.min(6, Math.max(3, Math.floor(innerH / 40))))
+          .tickFormat(d3.format('d'))
+      );
+    yAxis.select('.domain').remove();
+    yAxis.selectAll('.tick line').remove();
+    yAxis.selectAll('text').attr('fill', '#64748b').attr('font-size', 11).attr('font-family', 'inherit');
+
+    // Tooltip
+    const tooltip = d3
+      .select('body')
+      .append('div')
+      .attr('class', 'd3-tooltip');
+
+    // Bars
+    const bars = g
+      .selectAll('.bar')
+      .data(sortedData, (d) => d.canonical_name);
+
+    const bandwidth = xScale.bandwidth();
+    const radius = Math.min(6, Math.max(2, bandwidth / 5));
+
+    bars
+      .enter()
+      .append('rect')
+      .attr('class', 'bar')
+      .attr('x', (d) => xScale(d.canonical_name))
+      .attr('width', bandwidth)
+      .attr('y', innerH)
+      .attr('height', 0)
+      .attr('rx', radius)
+      .attr('ry', radius)
+      .attr('fill', (d) => color(d.canonical_name))
+      .attr('opacity', 0.92)
+      .on('mouseover', function (event, d) {
+        d3.select(this).attr('opacity', 1);
+        tooltip
+          .style('opacity', 1)
+          .html(
+            `<strong>${d.canonical_name}</strong>` +
+              `<div class="ff-tt-meta">${d.count} response${d.count === 1 ? '' : 's'}</div>`
+          );
+      })
+      .on('mousemove', function (event) {
+        tooltip
+          .style('left', `${event.pageX + 12}px`)
+          .style('top', `${event.pageY - 12}px`);
+      })
+      .on('mouseout', function () {
+        d3.select(this).attr('opacity', 0.92);
+        tooltip.style('opacity', 0);
+      })
+      .transition()
+      .duration(450)
+      .ease(d3.easeCubicOut)
+      .attr('y', (d) => yScale(d.count))
+      .attr('height', (d) => innerH - yScale(d.count));
+
+    // Value labels (only if bar is tall enough)
+    g.selectAll('.bar-value')
+      .data(sortedData)
+      .enter()
+      .append('text')
+      .attr('class', 'bar-value')
+      .attr('x', (d) => (xScale(d.canonical_name) || 0) + bandwidth / 2)
+      .attr('y', (d) => yScale(d.count) - 6)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10)
+      .attr('font-weight', 600)
+      .attr('fill', '#334155')
+      .style('opacity', 0)
+      .text((d) => d.count)
+      .transition()
+      .delay(250)
+      .duration(300)
+      .style('opacity', (d) => (innerH - yScale(d.count) >= 18 ? 1 : 0));
 
     return () => {
-        d3.select(".d3-tooltip").remove();
+      tooltip.remove();
     };
+  }, [sortedData, size]);
 
-  }, [data]); 
-
-  if (!data || data.length === 0) {
-    return <p className="text-sm text-gray-500 p-4">No data available to display chart.</p>;
+  if (!sortedData || sortedData.length === 0) {
+    return (
+      <div className="ff-card p-6">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <path d="M3 3v18h18" />
+              <rect x="7" y="13" width="3" height="5" rx="1" />
+              <rect x="12" y="9" width="3" height="9" rx="1" />
+              <rect x="17" y="6" width="3" height="12" rx="1" />
+            </svg>
+          </span>
+          <div>
+            <h4 className="ff-section-title">Response distribution</h4>
+            <p className="ff-section-subtitle">
+              No grouped responses to chart yet.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="chart-container p-4 border border-gray-300 rounded-lg shadow bg-white">
-      <h4 className="text-md font-semibold text-gray-700 mb-3 text-center">Survey Response Distribution</h4>
-      <svg ref={d3Container} />
+    <div className="ff-card overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+        <div>
+          <h4 className="ff-section-title">Response distribution</h4>
+          <p className="ff-section-subtitle">
+            Counts per grouped answer · {sortedData.length} group{sortedData.length === 1 ? '' : 's'}
+          </p>
+        </div>
+        <span className="ff-chip">Bar chart</span>
+      </div>
+      <div ref={containerRef} className="px-3 py-3">
+        <svg ref={svgRef} role="img" aria-label="Response distribution bar chart" />
+      </div>
     </div>
   );
 };

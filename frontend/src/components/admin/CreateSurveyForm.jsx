@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import apiClient from '../../api';
 
-function CreateSurveyForm({ onSurveyCreated }) {
+function CreateSurveyForm({ onSurveyCreated, onCancel }) {
   const [questionText, setQuestionText] = useState('');
   const [participantLimit, setParticipantLimit] = useState(500);
   const [isActive, setIsActive] = useState(true);
-  const [tags, setTags] = useState(''); // Comma-separated string for simplicity
+  const [tags, setTags] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
@@ -14,12 +14,13 @@ function CreateSurveyForm({ onSurveyCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!questionText.trim()) {
-      setError("Question text cannot be empty.");
+      setError('Question text cannot be empty.');
       return;
     }
-    if (participantLimit <= 0) {
-        setError("Participant limit must be greater than 0.");
-        return;
+    const limitNum = parseInt(participantLimit, 10);
+    if (Number.isNaN(limitNum) || limitNum <= 0) {
+      setError('Participant limit must be greater than 0.');
+      return;
     }
 
     setIsSubmitting(true);
@@ -28,31 +29,36 @@ function CreateSurveyForm({ onSurveyCreated }) {
 
     const surveyData = {
       question_text: questionText,
-      participant_limit: parseInt(participantLimit, 10),
+      participant_limit: limitNum,
       is_active: isActive,
-      tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag), // Convert to array, trim, filter empty
+      tags: tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag),
     };
 
     try {
       const response = await apiClient.post('/surveys/', surveyData);
-      setSuccessMessage(`Survey "${response.data.question_text}" created successfully!`);
+      setSuccessMessage(`Survey created successfully.`);
       setQuestionText('');
       setParticipantLimit(500);
-      setIsActive(false);
+      setIsActive(true);
       setTags('');
-      if (onSurveyCreated) {
-        onSurveyCreated(response.data);
-      }
+      if (onSurveyCreated) onSurveyCreated(response.data);
     } catch (err) {
-      console.error("Error creating survey:", err);
+      console.error('Error creating survey:', err);
       if (err.response && err.response.data && err.response.data.detail) {
-        if (Array.isArray(err.response.data.detail)) { 
-            setError(err.response.data.detail.map(d => `${d.loc.join('.')} - ${d.msg}`).join('; '));
+        if (Array.isArray(err.response.data.detail)) {
+          setError(
+            err.response.data.detail
+              .map((d) => `${d.loc.join('.')} – ${d.msg}`)
+              .join('; ')
+          );
         } else {
-            setError(`Creation failed: ${err.response.data.detail}`);
+          setError(`Creation failed: ${err.response.data.detail}`);
         }
       } else {
-        setError("Failed to create survey. Please try again.");
+        setError('Failed to create survey. Please try again.');
       }
     } finally {
       setIsSubmitting(false);
@@ -60,75 +66,162 @@ function CreateSurveyForm({ onSurveyCreated }) {
   };
 
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 mt-8">
-      <h3 className="text-lg font-semibold text-gray-700 mb-4">Create New Survey</h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="ff-card overflow-hidden">
+      <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">Create new survey</h3>
+            <p className="ff-section-subtitle">
+              Define a question, set a participant limit, and choose whether it starts active.
+            </p>
+          </div>
+        </div>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="ff-btn-ghost px-2 py-1 text-xs"
+            aria-label="Close form"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5 px-5 py-5">
         <div>
-          <label htmlFor="questionText" className="block text-sm font-medium text-gray-700">
-            Question Text
+          <label htmlFor="questionText" className="ff-label">
+            Question text
           </label>
           <textarea
             id="questionText"
             value={questionText}
             onChange={(e) => setQuestionText(e.target.value)}
             rows="3"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            className="ff-input resize-y"
+            placeholder="e.g. Name a popular pet"
             required
           />
+          <p className="mt-1 text-xs text-slate-500">
+            Phrase the question clearly so participants give short, comparable answers.
+          </p>
         </div>
 
-        <div>
-          <label htmlFor="participantLimit" className="block text-sm font-medium text-gray-700">
-            Participant Limit
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="participantLimit" className="ff-label">
+              Participant limit
+            </label>
+            <input
+              type="number"
+              id="participantLimit"
+              value={participantLimit}
+              onChange={(e) => setParticipantLimit(e.target.value)}
+              min="1"
+              className="ff-input"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="tags" className="ff-label">
+              Tags
+            </label>
+            <input
+              type="text"
+              id="tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="ff-input"
+              placeholder="e.g. fun, general, work"
+            />
+            <p className="mt-1 text-xs text-slate-500">Comma-separated.</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <label htmlFor="isActive" className="flex cursor-pointer items-center justify-between gap-3">
+            <span>
+              <span className="block text-sm font-medium text-slate-900">
+                Activate immediately
+              </span>
+              <span className="block text-xs text-slate-500">
+                Active surveys accept participant responses right away.
+              </span>
+            </span>
+            <span className="relative inline-flex h-5 w-9 shrink-0">
+              <input
+                id="isActive"
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-brand-600" />
+              <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+            </span>
           </label>
-          <input
-            type="number"
-            id="participantLimit"
-            value={participantLimit}
-            onChange={(e) => setParticipantLimit(e.target.value)}
-            min="1"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            required
-          />
         </div>
 
-        <div>
-          <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
-            Tags (comma-separated)
-          </label>
-          <input
-            type="text"
-            id="tags"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="e.g., fun, general, work"
-          />
+        {error && (
+          <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+            {error}
+          </div>
+        )}
+        {successMessage && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            {successMessage}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2 pt-1">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="ff-btn-secondary"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="ff-btn-primary"
+          >
+            {isSubmitting ? (
+              <>
+                <svg
+                  className="h-4 w-4 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                Creating…
+              </>
+            ) : (
+              'Create survey'
+            )}
+          </button>
         </div>
-
-        <div className="flex items-center">
-          <input
-            id="isActive"
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-          />
-          <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-            Activate immediately
-          </label>
-        </div>
-
-        {error && <div className="p-3 bg-red-100 text-red-700 border border-red-300 rounded text-sm">{error}</div>}
-        {successMessage && <div className="p-3 bg-green-100 text-green-700 border border-green-300 rounded text-sm">{successMessage}</div>}
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Creating...' : 'Create Survey'}
-        </button>
       </form>
     </div>
   );

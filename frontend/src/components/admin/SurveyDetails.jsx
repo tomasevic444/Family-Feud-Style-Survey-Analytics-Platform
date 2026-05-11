@@ -784,24 +784,63 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   };
 
   if (!surveyId) {
-    return <div className="text-center text-gray-500 p-6 bg-white shadow-md rounded-lg">Select a survey to view its details.</div>;
+    return (
+      <div className="ff-card flex min-h-[40vh] flex-col items-center justify-center p-10 text-center">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-6 w-6"
+            aria-hidden="true"
+          >
+            <path d="M3 3v18h18" />
+            <path d="M7 14l3-3 3 3 5-6" />
+          </svg>
+        </div>
+        <p className="text-base font-semibold text-slate-900">Select a survey</p>
+        <p className="mt-1 max-w-sm text-sm text-slate-500">
+          Choose a survey from the list on the left to see its responses, grouped results, and processing runs.
+        </p>
+      </div>
+    );
   }
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-gray-100 bg-white p-10 text-center shadow-md">
-        <p className="font-medium text-gray-700">Loading survey details…</p>
-        <p className="mt-2 text-xs text-gray-400">Fetching question, responses, and grouped results</p>
+      <div className="ff-card p-6 space-y-4">
+        <div className="ff-skeleton h-6 w-2/3" />
+        <div className="ff-skeleton h-4 w-1/3" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <div className="ff-skeleton h-16" />
+          <div className="ff-skeleton h-16" />
+          <div className="ff-skeleton h-16" />
+          <div className="ff-skeleton h-16" />
+        </div>
+        <div className="ff-skeleton h-40 w-full" />
       </div>
     );
   }
-  
+
   if (error && !survey) {
-      return <div className="text-center p-4 text-red-600 bg-red-100 border border-red-400 rounded-md shadow">{error}</div>;
+    return (
+      <div className="ff-card overflow-hidden">
+        <div className="border-b border-rose-200 bg-rose-50 px-6 py-4 text-rose-900">
+          <p className="font-semibold">Survey unavailable</p>
+        </div>
+        <div className="px-6 py-4 text-sm text-slate-700">{error}</div>
+      </div>
+    );
   }
-  
+
   if (!survey) {
-    return <div className="text-center p-4 bg-white shadow-md rounded-lg">Survey data could not be loaded.</div>;
+    return (
+      <div className="ff-card p-6 text-center text-slate-600">Survey data could not be loaded.</div>
+    );
   }
 
   return (
@@ -845,70 +884,103 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         isActivating={activatingRunId === previewRun?.run_id}
       />
 
-      <div className="bg-white shadow-md rounded-lg p-6 space-y-8">
-        <div className="pb-4 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">{survey.question_text}</h2>
-            <div className="flex items-center space-x-4 mb-2">
-                <p className="text-sm text-gray-600">
-                    Status: <span className={`font-semibold ${survey.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                        {survey.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                </p>
-                <p className="text-sm text-gray-600">
-                    Participant Limit: <span className="font-semibold">{survey.participant_limit}</span>
-                </p>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    onClick={handleToggleActiveStatus}
-                    disabled={isUpdatingStatus}
-                    className={`rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50
-                                ${survey.is_active
-                                    ? 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-400'
-                                    : 'bg-green-500 text-white hover:bg-green-600 focus:ring-green-400'
-                                }`}
-                >
-                    {isUpdatingStatus ? 'Updating...' : (survey.is_active ? 'Deactivate Survey' : 'Activate Survey')}
-                </button>
-                <button
-                    type="button"
-                    onClick={handleProcessSurvey}
-                    disabled={isActiveProcessing(groupedResults?.status)}
-                    title={
-                      isActiveProcessing(groupedResults?.status)
-                        ? 'Wait until the current run finishes'
-                        : 'Queue NLP grouping for current responses'
+      <div className="space-y-6">
+        <div className="ff-card overflow-hidden">
+          <div className="border-b border-slate-100 bg-gradient-to-br from-white via-white to-brand-50/40 px-6 py-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="ff-section-subtitle">Survey question</p>
+                <h2 className="mt-0.5 text-xl font-semibold leading-snug text-slate-900 sm:text-2xl">
+                  {survey.question_text}
+                </h2>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                  <span
+                    className={
+                      'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-semibold uppercase tracking-wide ring-1 ring-inset ' +
+                      (survey.is_active
+                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                        : 'bg-slate-100 text-slate-600 ring-slate-200')
                     }
-                    className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    <span className={'h-1.5 w-1.5 rounded-full ' + (survey.is_active ? 'bg-emerald-500 animate-pulse-dot' : 'bg-slate-400')} />
+                    {survey.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                  <span className="ff-chip">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                    </svg>
+                    Limit {survey.participant_limit}
+                  </span>
+                  {Array.isArray(survey.tags) && survey.tags.slice(0, 3).map((t) => (
+                    <span key={t} className="ff-chip">#{t}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleActiveStatus}
+                  disabled={isUpdatingStatus}
+                  className={survey.is_active ? 'ff-btn-secondary' : 'ff-btn-success'}
                 >
-                    {isActiveProcessing(groupedResults?.status) ? 'Processing…' : 'Process responses'}
+                  {isUpdatingStatus ? 'Updating…' : (survey.is_active ? 'Deactivate' : 'Activate')}
                 </button>
+                <button
+                  type="button"
+                  onClick={handleProcessSurvey}
+                  disabled={isActiveProcessing(groupedResults?.status)}
+                  title={
+                    isActiveProcessing(groupedResults?.status)
+                      ? 'Wait until the current run finishes'
+                      : 'Queue NLP grouping for current responses'
+                  }
+                  className="ff-btn-primary"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  {isActiveProcessing(groupedResults?.status) ? 'Processing…' : 'Process responses'}
+                </button>
+              </div>
             </div>
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
-              <h3 className="text-sm font-semibold text-slate-900">Processing Settings</h3>
-              <p className="mt-1 text-xs text-slate-600">Applies to the next processing run only.</p>
-              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                <label className="text-xs text-slate-700">
-                  Run label
+          </div>
+
+          <div className="px-6 py-5 space-y-5">
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/70 shadow-card">
+              <div className="flex items-start gap-3 border-b border-slate-200 px-4 py-3">
+                <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.34.65.7 1.34 1 2v.09A2 2 0 0 1 21 13h-.09c-.66 0-1.33.07-2 .4z" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="ff-section-title">Processing settings</h3>
+                  <p className="ff-section-subtitle">Applies to the next processing run only.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 px-4 py-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="ff-label">Run label</span>
                   <input
                     type="text"
                     value={processingConfig.run_label}
                     onChange={(e) =>
                       setProcessingConfig((prev) => ({ ...prev, run_label: e.target.value }))
                     }
-                    placeholder="MiniLM baseline, KMeans experiment, ..."
-                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    placeholder="MiniLM baseline, KMeans experiment, …"
+                    className="ff-input"
                   />
                 </label>
-                <label className="text-xs text-slate-700">
-                  Clustering method
+                <label className="block">
+                  <span className="ff-label">Clustering method</span>
                   <select
                     value={processingConfig.clustering_method}
                     onChange={(e) =>
                       setProcessingConfig((prev) => ({ ...prev, clustering_method: e.target.value }))
                     }
-                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    className="ff-input"
                   >
                     <option value="agglomerative_threshold">Agglomerative threshold</option>
                     <option value="kmeans_auto_k">KMeans auto-K</option>
@@ -916,8 +988,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                   </select>
                 </label>
                 {processingConfig.clustering_method === 'agglomerative_threshold' && (
-                  <label className="text-xs text-slate-700">
-                    Distance threshold
+                  <label className="block md:col-span-2">
+                    <span className="ff-label">Distance threshold</span>
                     <input
                       type="number"
                       step="0.05"
@@ -925,7 +997,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       onChange={(e) =>
                         setProcessingConfig((prev) => ({ ...prev, distance_threshold: e.target.value }))
                       }
-                      className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      className="ff-input"
                     />
                     <span className="mt-1 block text-[11px] text-slate-500">
                       Lower values create more specific groups. Higher values merge more aggressively.
@@ -934,24 +1006,24 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                 )}
                 {processingConfig.clustering_method === 'kmeans_auto_k' && (
                   <>
-                    <label className="text-xs text-slate-700">
-                      Minimum clusters
+                    <label className="block">
+                      <span className="ff-label">Minimum clusters</span>
                       <input
                         type="number"
                         min="2"
                         value={processingConfig.min_k}
                         onChange={(e) => setProcessingConfig((prev) => ({ ...prev, min_k: e.target.value }))}
-                        className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                        className="ff-input"
                       />
                     </label>
-                    <label className="text-xs text-slate-700">
-                      Maximum clusters
+                    <label className="block">
+                      <span className="ff-label">Maximum clusters</span>
                       <input
                         type="number"
                         min="2"
                         value={processingConfig.max_k}
                         onChange={(e) => setProcessingConfig((prev) => ({ ...prev, max_k: e.target.value }))}
-                        className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                        className="ff-input"
                       />
                       <span className="mt-1 block text-[11px] text-slate-500">
                         Tests multiple K values and chooses one using clustering quality metrics.
@@ -960,166 +1032,210 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                   </>
                 )}
                 {processingConfig.clustering_method === 'kmeans_fixed_k' && (
-                  <label className="text-xs text-slate-700">
-                    Specific cluster count
+                  <label className="block md:col-span-2">
+                    <span className="ff-label">Specific cluster count</span>
                     <input
                       type="number"
                       min="2"
                       value={processingConfig.fixed_k}
                       onChange={(e) => setProcessingConfig((prev) => ({ ...prev, fixed_k: e.target.value }))}
-                      className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      className="ff-input"
                     />
                     <span className="mt-1 block text-[11px] text-slate-500">
                       Use when you already know approximately how many answer categories should exist.
                     </span>
                   </label>
                 )}
-                <label className="text-xs text-slate-700">
-                  Embedding model
+                <label className="block md:col-span-2">
+                  <span className="ff-label">Embedding model</span>
                   <select
                     value={processingConfig.embedding_model}
                     onChange={(e) =>
                       setProcessingConfig((prev) => ({ ...prev, embedding_model: e.target.value }))
                     }
-                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    className="ff-input"
                   >
                     <option value="sentence-transformers/all-MiniLM-L6-v2">all-MiniLM-L6-v2 — recommended / fast</option>
                     <option value="BAAI/bge-m3">BAAI/bge-m3 — experimental / slower</option>
                     <option value="intfloat/multilingual-e5-large-instruct">multilingual-e5-large-instruct — heavy experimental</option>
                   </select>
+                  {nonDefaultModel && (
+                    <span className="mt-1 block text-[11px] text-amber-700">
+                      Large models may be slower and may download on first use.
+                    </span>
+                  )}
                 </label>
-                <label className="text-xs text-slate-700 md:col-span-2">
-                  Excluded words
-                  <textarea
-                    value={processingConfig.excluded_words}
-                    onChange={(e) =>
-                      setProcessingConfig((prev) => ({ ...prev, excluded_words: e.target.value }))
-                    }
-                    placeholder="idk, no answer, nothing, n/a"
-                    rows={2}
-                    className="mt-1 block w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                  />
-                  <label className="mt-2 inline-flex items-center gap-2 text-xs text-slate-700">
+                <div className="md:col-span-2">
+                  <label className="block">
+                    <span className="ff-label">Excluded words</span>
+                    <textarea
+                      value={processingConfig.excluded_words}
+                      onChange={(e) =>
+                        setProcessingConfig((prev) => ({ ...prev, excluded_words: e.target.value }))
+                      }
+                      placeholder="idk, no answer, nothing, n/a"
+                      rows={2}
+                      className="ff-input resize-y"
+                    />
+                  </label>
+                  <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs text-slate-700">
                     <input
                       type="checkbox"
                       checked={processingConfig.use_excluded_words}
                       onChange={(e) =>
                         setProcessingConfig((prev) => ({ ...prev, use_excluded_words: e.target.checked }))
                       }
+                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                     />
                     Use excluded words for this run
                   </label>
-                </label>
+                </div>
               </div>
-              {nonDefaultModel && (
-                <p className="mt-2 text-xs text-amber-700">
-                  Large models may be slower and may download on first use.
-                </p>
-              )}
             </div>
 
             {participantSurveyUrl && (
-              <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50/60 px-3 py-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-900/90">Participant link</p>
-                <p className="mt-0.5 text-xs text-indigo-900/70">
-                  Opens answer submission in participant mode (<code className="rounded bg-white/80 px-1 text-[11px]">?mode=participant</code>).
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <code className="min-w-0 max-w-full flex-1 truncate rounded-md bg-white px-2 py-1.5 text-left text-[11px] text-gray-800 ring-1 ring-indigo-100">
+              <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/80 to-indigo-50/40 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white text-brand-700 shadow-sm ring-1 ring-inset ring-brand-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-900">Participant link</p>
+                    <p className="mt-0.5 text-xs text-brand-900/70">
+                      Share this URL to collect responses. Opens in participant mode.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <code className="min-w-0 max-w-full flex-1 truncate rounded-md bg-white px-2 py-1.5 text-left text-[11px] text-slate-800 ring-1 ring-inset ring-brand-100">
                     {participantSurveyUrl}
                   </code>
                   <button
                     type="button"
                     onClick={handleCopyParticipantLink}
-                    className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+                    className="ff-btn-primary px-3 py-1.5 text-xs"
                   >
-                    {participantLinkCopied ? 'Copied!' : 'Copy link'}
+                    {participantLinkCopied ? (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        Copy link
+                      </>
+                    )}
                   </button>
                   <a
                     href={participantSurveyUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 text-xs font-medium text-indigo-800 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-950"
+                    className="ff-btn-secondary px-3 py-1.5 text-xs"
                   >
                     Open
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
                   </a>
                 </div>
               </div>
             )}
 
             {groupedResults ? (
-              <div className="mt-4 space-y-3">
-                <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-slate-50/90 to-white p-4 shadow-sm">
-                  <div className="border-b border-gray-100 pb-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Latest processing run</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <StatusBadge status={groupedResults.status} />
-                      {isActiveProcessing(groupedResults.status) && (
-                        <span className="text-xs text-gray-500">Auto-refresh on</span>
-                      )}
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-brand-50/40 shadow-card">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                    <div>
+                      <p className="ff-section-subtitle uppercase tracking-wide">Latest processing run</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <StatusBadge status={groupedResults.status} />
+                        {isActiveProcessing(groupedResults.status) && (
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                            <span className="h-1.5 w-1.5 rounded-full bg-brand-500 animate-pulse-dot" />
+                            Auto-refresh on
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {(activeRunContext.label || activeRunContext.runId || activeRunContext.clusteringMethod) && (
-                      <p className="mt-2 text-xs text-gray-600">
-                        Showing active result from:{' '}
-                        <span className="font-medium text-gray-800">
+                      <div className="text-right text-xs text-slate-600">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400">Active result</p>
+                        <p className="mt-0.5 font-medium text-slate-800">
                           {activeRunContext.label || 'Latest result'}
-                        </span>
-                        {activeRunContext.runId && (
-                          <span className="text-gray-500"> · run {shortRunId(activeRunContext.runId)}</span>
-                        )}
-                        {activeRunContext.clusteringMethod && (
-                          <span className="text-gray-500"> · {activeRunContext.clusteringMethod}</span>
-                        )}
-                        {activeRunContext.embeddingModel && (
-                          <span className="text-gray-500"> · {activeRunContext.embeddingModel}</span>
-                        )}
-                      </p>
+                        </p>
+                        <p className="text-slate-500">
+                          {activeRunContext.runId && <>run {shortRunId(activeRunContext.runId)}</>}
+                          {activeRunContext.clusteringMethod && <> · {activeRunContext.clusteringMethod}</>}
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-4 py-3 sm:grid-cols-4">
                     <div>
-                      <dt className="text-xs font-medium text-gray-500">Input answers</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-gray-900">
+                      <dt className="text-[11px] uppercase tracking-wide text-slate-500">Input answers</dt>
+                      <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900">
                         {groupedResults.input_answer_count != null ? groupedResults.input_answer_count : '—'}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs font-medium text-gray-500">Output groups</dt>
-                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-gray-900">
+                      <dt className="text-[11px] uppercase tracking-wide text-slate-500">Output groups</dt>
+                      <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900">
                         {groupedResults.output_group_count != null ? groupedResults.output_group_count : '—'}
                       </dd>
                     </div>
-                    <div className="col-span-2 sm:col-span-2">
-                      <dt className="text-xs font-medium text-gray-500">Last processing time</dt>
-                      <dd className="mt-0.5 text-sm font-medium text-gray-900">
-                        {groupedResults.processing_time_utc ? formatUtcLabel(groupedResults.processing_time_utc) : '—'}
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-slate-500">Processed</dt>
+                      <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900">
+                        {groupedResults.processed_answer_count ?? '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wide text-slate-500">Excluded</dt>
+                      <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900">
+                        {groupedResults.excluded_answer_count ?? '—'}
                       </dd>
                     </div>
                   </dl>
-                  {(groupedResults.model_name ||
-                    groupedResults.distance_threshold != null ||
-                    groupedResults.preprocessing_descriptor) && (
-                    <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-600">
-                      <span className="font-medium text-gray-700">Pipeline</span> · {groupedResults.embedding_model || groupedResults.model_name || '—'} ·
-                      {formatPipelineRun(groupedResults)} · {groupedResults.preprocessing_descriptor || '—'} · {groupedResults.embedding_descriptor || '—'}
+                  <div className="space-y-1 border-t border-slate-100 px-4 py-3 text-xs text-slate-600">
+                    <p>
+                      <span className="text-slate-400">Last run</span>{' '}
+                      <span className="font-medium text-slate-700">
+                        {groupedResults.processing_time_utc ? formatUtcLabel(groupedResults.processing_time_utc) : '—'}
+                      </span>
                     </p>
-                  )}
-                  {groupedResults.excluded_answer_count != null && (
-                    <p className="mt-2 text-xs text-gray-600">
-                      Excluded answers: {groupedResults.excluded_answer_count} · Processed: {groupedResults.processed_answer_count ?? '—'}
-                    </p>
-                  )}
-                  {groupedResults.silhouette != null && (
-                    <p className="mt-1 text-xs text-gray-600">
-                      KMeans metrics · silhouette {groupedResults.silhouette} · CH {groupedResults.calinski_harabasz ?? '—'} · DB {groupedResults.davies_bouldin ?? '—'}
-                    </p>
-                  )}
+                    {(groupedResults.model_name ||
+                      groupedResults.distance_threshold != null ||
+                      groupedResults.preprocessing_descriptor) && (
+                      <p>
+                        <span className="text-slate-400">Pipeline</span>{' '}
+                        <span className="text-slate-700">{groupedResults.embedding_model || groupedResults.model_name || '—'}</span>
+                        {' · '}
+                        <span className="text-slate-700">{formatPipelineRun(groupedResults)}</span>
+                      </p>
+                    )}
+                    {groupedResults.silhouette != null && (
+                      <p>
+                        <span className="text-slate-400">KMeans</span> silhouette {groupedResults.silhouette} · CH {groupedResults.calinski_harabasz ?? '—'} · DB {groupedResults.davies_bouldin ?? '—'}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 {groupedResults.status === 'failed' && groupedResults.errors && groupedResults.errors.length > 0 && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
                     <p className="font-semibold">Processing failed</p>
                     {groupedResults.errors.map((line, i) => (
-                      <p key={i} className="mt-1">
+                      <p key={i} className="mt-1 text-rose-800">
                         {line}
                       </p>
                     ))}
@@ -1127,45 +1243,55 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                 )}
               </div>
             ) : (
-              <div className="mt-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm">
-                <p className="font-medium text-gray-800">No grouped results yet</p>
-                <p className="mt-1 text-xs text-gray-600">
-                  After responses come in, use <span className="font-semibold text-gray-800">Process responses</span> to
-                  run grouping. Status and counts will appear in the summary above.
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-6 text-center">
+                <p className="text-sm font-medium text-slate-800">No grouped results yet</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  After responses come in, click <span className="font-semibold text-slate-700">Process responses</span> to
+                  run grouping. Status and counts will appear here.
                 </p>
               </div>
             )}
 
-            {statusUpdateMessage && <p className="mt-3 text-sm text-green-700">{statusUpdateMessage}</p>}
-            {processingMessage && <p className="mt-3 text-sm text-blue-800">{processingMessage}</p>}
-            {runsActionMessage && (
-              <p className="mt-3 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-md p-2">
-                {runsActionMessage}
-              </p>
+            {statusUpdateMessage && (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{statusUpdateMessage}</div>
             )}
-            {error && !groupNameEditError && <p className="mt-3 text-sm text-red-800 bg-red-50 border border-red-100 rounded-md p-2">{error}</p>}
+            {processingMessage && (
+              <div className="rounded-md border border-brand-100 bg-brand-50/70 px-3 py-2 text-sm text-brand-900">{processingMessage}</div>
+            )}
+            {runsActionMessage && (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                {runsActionMessage}
+              </div>
+            )}
+            {error && !groupNameEditError && (
+              <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div>
+            )}
+          </div>
         </div>
 
-        <div>
-          <div className="flex flex-col gap-1 border-b border-gray-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="ff-card overflow-hidden">
+          <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">Processing Runs</h3>
-              <p className="text-xs text-gray-500">
+              <h3 className="ff-section-title">Processing runs</h3>
+              <p className="ff-section-subtitle">
                 Stored snapshots from every processing run. Preview, reuse settings, or set as active.
               </p>
             </div>
-            <div className="text-xs text-gray-500">
+            <span className="ff-chip self-start sm:self-auto">
               {isLoadingRuns ? 'Loading…' : `${processingRuns.length} run${processingRuns.length === 1 ? '' : 's'}`}
-            </div>
+            </span>
           </div>
+          <div className="px-5 py-4">
           {runsError && (
             <p className="mt-2 text-sm text-red-700 bg-red-50 border border-red-100 rounded-md p-2">{runsError}</p>
           )}
           {!isLoadingRuns && processingRuns.length === 0 && !runsError && (
-            <p className="mt-3 text-sm italic text-gray-500">No processing runs yet.</p>
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center text-sm text-slate-500">
+              No processing runs yet. Click <span className="font-medium text-slate-700">Process responses</span> to create your first one.
+            </div>
           )}
           {processingRuns.length > 0 && (
-            <ul className="mt-3 space-y-2 max-h-96 overflow-y-auto pr-1">
+            <ul className="space-y-2 max-h-96 overflow-y-auto pr-1">
               {processingRuns.map((run) => {
                 const groupCount =
                   run.output_group_count ??
@@ -1182,59 +1308,66 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                 return (
                   <li
                     key={run.run_id}
-                    className={`rounded-md border bg-white p-3 shadow-sm ${
-                      run.is_active ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-gray-200'
-                    }`}
+                    className={
+                      'rounded-xl border bg-white p-3 transition hover:shadow-card-lift ' +
+                      (run.is_active
+                        ? 'border-emerald-300 bg-gradient-to-br from-emerald-50/60 to-white ring-1 ring-emerald-200'
+                        : 'border-slate-200')
+                    }
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <StatusBadge status={run.status} uppercase={false} />
                         {run.is_active && (
-                          <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
                             Active
                           </span>
                         )}
                         {run.run_label && (
-                          <span className="text-sm font-medium text-gray-800 truncate">
+                          <span className="truncate text-sm font-medium text-slate-900">
                             {run.run_label}
                           </span>
                         )}
+                        <span className="font-mono text-[10px] text-slate-400">{shortRunId(run.run_id)}</span>
                       </div>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-slate-500">
                         {formatUtcLabel(run.run_timestamp_utc)}
                       </span>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600 sm:grid-cols-4">
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-600 sm:grid-cols-4">
                       <div>
-                        <span className="text-gray-500">Method:</span>{' '}
-                        <span className="text-gray-800">{run.clustering_method || '—'}</span>
+                        <span className="text-slate-400">Method</span>{' '}
+                        <span className="text-slate-800">{run.clustering_method || '—'}</span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">Model:</span>{' '}
-                        <span className="text-gray-800 truncate">
+                      <div className="truncate">
+                        <span className="text-slate-400">Model</span>{' '}
+                        <span className="text-slate-800">
                           {run.embedding_model || run.model_name || '—'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Groups:</span>{' '}
-                        <span className="text-gray-800 tabular-nums">{groupCount || 0}</span>
+                        <span className="text-slate-400">Groups</span>{' '}
+                        <span className="font-semibold text-slate-900 tabular-nums">{groupCount || 0}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Processed:</span>{' '}
-                        <span className="text-gray-800 tabular-nums">
+                        <span className="text-slate-400">Processed</span>{' '}
+                        <span className="text-slate-800 tabular-nums">
                           {run.processed_answer_count ?? '—'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Excluded:</span>{' '}
-                        <span className="text-gray-800 tabular-nums">
+                        <span className="text-slate-400">Excluded</span>{' '}
+                        <span className="text-slate-800 tabular-nums">
                           {run.excluded_answer_count ?? '—'}
                         </span>
                       </div>
                       {run.clustering_method === 'agglomerative_threshold' && (
                         <div>
-                          <span className="text-gray-500">Threshold:</span>{' '}
-                          <span className="text-gray-800 tabular-nums">
+                          <span className="text-slate-400">Threshold</span>{' '}
+                          <span className="text-slate-800 tabular-nums">
                             {run.distance_threshold ?? '—'}
                           </span>
                         </div>
@@ -1242,14 +1375,14 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       {run.clustering_method === 'kmeans_auto_k' && (
                         <>
                           <div>
-                            <span className="text-gray-500">K range:</span>{' '}
-                            <span className="text-gray-800 tabular-nums">
-                              {run.min_k ?? '—'} - {run.max_k ?? '—'}
+                            <span className="text-slate-400">K range</span>{' '}
+                            <span className="text-slate-800 tabular-nums">
+                              {run.min_k ?? '—'}–{run.max_k ?? '—'}
                             </span>
                           </div>
                           <div>
-                            <span className="text-gray-500">Selected K:</span>{' '}
-                            <span className="text-gray-800 tabular-nums">
+                            <span className="text-slate-400">Selected K</span>{' '}
+                            <span className="font-semibold text-slate-900 tabular-nums">
                               {run.selected_k ?? '—'}
                             </span>
                           </div>
@@ -1257,8 +1390,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       )}
                       {run.clustering_method === 'kmeans_fixed_k' && (
                         <div>
-                          <span className="text-gray-500">Fixed K:</span>{' '}
-                          <span className="text-gray-800 tabular-nums">
+                          <span className="text-slate-400">Fixed K</span>{' '}
+                          <span className="font-semibold text-slate-900 tabular-nums">
                             {run.fixed_k ?? '—'}
                           </span>
                         </div>
@@ -1268,14 +1401,14 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       <button
                         type="button"
                         onClick={() => handlePreviewRun(run)}
-                        className="rounded-md bg-white px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+                        className="ff-btn-secondary px-3 py-1.5 text-xs"
                       >
                         Preview
                       </button>
                       <button
                         type="button"
                         onClick={() => handleUseSettingsFromRun(run)}
-                        className="rounded-md bg-slate-700 px-3 py-1 text-xs font-medium text-white hover:bg-slate-800"
+                        className="ff-btn-ghost px-3 py-1.5 text-xs"
                       >
                         Use settings
                       </button>
@@ -1284,12 +1417,15 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                         onClick={() => handleActivateRun(run)}
                         disabled={!canActivate || activatingRunId === run.run_id}
                         title={activateTitle}
-                        className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="ff-btn-primary px-3 py-1.5 text-xs"
                       >
-                        {activatingRunId === run.run_id ? 'Activating…' : 'Set as active result'}
+                        {activatingRunId === run.run_id ? 'Activating…' : 'Set as active'}
                       </button>
                       {useSettingsRunId === run.run_id && (
-                        <span className="text-[11px] font-medium text-slate-600">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
                           Settings loaded
                         </span>
                       )}
@@ -1299,15 +1435,25 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               })}
             </ul>
           )}
+          </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-          <div className="flex flex-col gap-1 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800">Cluster Quality Insights</h3>
-              <p className="text-xs text-gray-500">
-                Review signals for the active grouped result. These are review hints, not automatic merge recommendations.
-              </p>
+        <div className="ff-card overflow-hidden">
+          <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                  <path d="M3 3v18h18" />
+                  <path d="M7 14l3-3 3 3 5-6" />
+                  <path d="M21 9V3h-6" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="ff-section-title">Cluster quality insights</h3>
+                <p className="ff-section-subtitle">
+                  Review signals for the active grouped result — hints only, not automatic merge recommendations.
+                </p>
+              </div>
             </div>
             {groupedResults?.manual_edits_applied && (
               <span className="inline-flex self-start rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200">
@@ -1315,31 +1461,32 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               </span>
             )}
           </div>
+          <div className="px-5 py-4">
 
           {!groupedResults ? (
-            <p className="mt-3 text-sm italic text-gray-500">
+            <p className="text-sm italic text-slate-500">
               No active grouped result yet. Process responses to see quality insights.
             </p>
           ) : qualityInsights.totalGroups === 0 ? (
-            <p className="mt-3 text-sm italic text-gray-500">
+            <p className="text-sm italic text-slate-500">
               No clusters are available in the active result.
             </p>
           ) : (
-            <div className="mt-3 space-y-4">
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Total groups</p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
                     {qualityInsights.totalGroups}
                   </p>
                 </div>
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Grouped answers</p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
                     {qualityInsights.totalGroupedAnswers}
                   </p>
                 </div>
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Largest group</p>
                   <p className="mt-1 truncate text-sm font-semibold text-slate-900">
                     {qualityInsights.largestGroup
@@ -1347,7 +1494,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       : '—'}
                   </p>
                 </div>
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Smallest group</p>
                   <p className="mt-1 truncate text-sm font-semibold text-slate-900">
                     {qualityInsights.smallestGroup
@@ -1355,17 +1502,24 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       : '—'}
                   </p>
                 </div>
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Avg group size</p>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
                     {qualityInsights.averageGroupSize != null
                       ? qualityInsights.averageGroupSize.toFixed(1)
                       : '—'}
                   </p>
                 </div>
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div
+                  className={
+                    'rounded-xl border p-3 ' +
+                    (qualityInsights.potentialReviewItemsCount > 0
+                      ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-white'
+                      : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white')
+                  }
+                >
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Review items</p>
-                  <p className={`mt-1 text-lg font-semibold tabular-nums ${
+                  <p className={`mt-1 text-2xl font-semibold tabular-nums ${
                     qualityInsights.potentialReviewItemsCount > 0 ? 'text-amber-700' : 'text-emerald-700'
                   }`}>
                     {qualityInsights.potentialReviewItemsCount}
@@ -1477,32 +1631,38 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
-          <>
-    <SurveyResultsChart data={groupedResults.grouped_answers} />
-    
-    <SemanticSpaceChart data={groupedResults.grouped_answers} /> 
-  </>
-  
-        ) : groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length === 0 ? (
-          <div className="chart-container rounded-lg border border-gray-200 bg-white p-4 shadow">
-              <h4 className="text-md mb-2 text-center font-semibold text-gray-700">Survey response distribution</h4>
-              <p className="text-center text-sm text-gray-500">
-                Nothing to plot yet — the last run produced no clusters. Check the summary above or try again with more
-                answers.
-              </p>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <SurveyResultsChart data={groupedResults.grouped_answers} />
+            <SemanticSpaceChart data={groupedResults.grouped_answers} />
           </div>
-        ) : null 
-        }
+        ) : groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length === 0 ? (
+          <div className="ff-card p-6 text-center">
+            <h4 className="ff-section-title">Response distribution</h4>
+            <p className="mt-1 text-sm text-slate-500">
+              Nothing to plot yet — the last run produced no clusters. Try again with more answers.
+            </p>
+          </div>
+        ) : null}
 
 
-        <div>
-          <div className="mb-3 flex flex-col gap-3 border-b border-gray-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800">Grouped results</h3>
-              <p className="text-xs text-gray-500">Text view · export · merge</p>
+        <div className="ff-card overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-100">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                  <path d="M3 6h18" />
+                  <path d="M6 12h12" />
+                  <path d="M9 18h6" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="ff-section-title">Grouped results</h3>
+                <p className="ff-section-subtitle">Text view · export · merge</p>
+              </div>
             </div>
             {(canEditGroups || canExportGroupedResults || groupedResults) && (
               <div className="flex flex-wrap items-center gap-2">
@@ -1515,14 +1675,19 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       ? 'Download grouped answers as CSV'
                       : 'Run processing and wait for at least one group before exporting'
                   }
-                  className="rounded-md bg-slate-700 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="ff-btn-secondary"
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
                   Export CSV
                 </button>
                 {canEditGroups && (
                   <>
-                    <span className="hidden text-gray-300 sm:inline">|</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="hidden h-5 w-px bg-slate-200 sm:inline-block" />
+                    <span className="text-xs text-slate-500">
                       {selectedForMerge.length > 0 ? `${selectedForMerge.length} selected` : 'Select 2+ groups'}
                     </span>
                     <button
@@ -1530,7 +1695,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       onClick={handleOpenMergeModal}
                       disabled={selectedForMerge.length < 2 || isMerging}
                       title={selectedForMerge.length < 2 ? 'Select at least two groups with the checkboxes' : 'Merge into one group'}
-                      className="rounded-md bg-teal-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-45"
+                      className="ff-btn-success"
                     >
                       Merge selected
                     </button>
@@ -1539,172 +1704,208 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               </div>
             )}
           </div>
-          {exportError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{exportError}</p>}
-          {groupNameEditError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{groupNameEditError}</p>}
+          <div className="px-5 py-4">
+          {exportError && <p className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-800">{exportError}</p>}
+          {groupNameEditError && <p className="mb-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-sm text-rose-800">{groupNameEditError}</p>}
           {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
-            <div className="space-y-3 max-h-96 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200">
+            <div className="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 p-3">
               {groupedResults.grouped_answers.map((group, index) => (
-                <div key={group.canonical_name + index} className="bg-white p-3 rounded border border-gray-200 shadow-sm">
+                <div key={group.canonical_name + index} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:shadow-card-lift">
                   {editingGroupName === group.canonical_name ? (
-                    // --- Editing State ---
                     <div className="space-y-2">
                       <input
                         type="text"
                         value={newGroupName}
                         onChange={(e) => setNewGroupName(e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        className="ff-input"
                         autoFocus
                       />
-                      <div className="flex space-x-2">
+                      <div className="flex gap-2">
                         <button
                           onClick={() => handleSaveGroupName(group.canonical_name)}
                           disabled={isSavingGroupName}
-                          className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50"
+                          className="ff-btn-success px-3 py-1 text-xs"
                         >
-                          {isSavingGroupName ? 'Saving...' : 'Save'}
+                          {isSavingGroupName ? 'Saving…' : 'Save'}
                         </button>
                         <button
                           onClick={handleCancelEditGroupName}
-                          className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+                          className="ff-btn-secondary px-3 py-1 text-xs"
                         >
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    // --- Display State ---
-                    <div className="flex justify-between items-center gap-2">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
                         {canEditGroups && (
                           <input
                             type="checkbox"
                             checked={selectedForMerge.includes(group.canonical_name)}
                             onChange={() => toggleMergeSelect(group.canonical_name)}
-                            className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 shrink-0"
+                            className="h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                             aria-label={`Select group ${group.canonical_name} for merge`}
                           />
                         )}
-                        <p className="font-semibold text-blue-700 truncate">
-                          {group.canonical_name}{' '}
-                          <span className="text-xs font-normal text-gray-600">({group.count} responses)</span>
+                        <p className="min-w-0 truncate text-sm font-semibold text-slate-900">
+                          {group.canonical_name}
+                          <span className="ml-2 inline-flex items-center rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-100 tabular-nums">
+                            {group.count}
+                          </span>
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleEditGroupName(group.canonical_name)}
-                        className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md shrink-0"
+                        className="ff-btn-ghost shrink-0 px-2 py-1 text-xs"
+                        title="Rename this group"
                       >
-                        Edit Name
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        Rename
                       </button>
                     </div>
                   )}
                   {group.raw_answers && group.raw_answers.length > 0 && (
-                      <ul className="text-xs text-gray-600 pl-4 list-disc mt-1 space-y-1">
-                      {group.raw_answers.map((ans, i) => (
-                          <li key={i} className="flex justify-between items-center">
-                            <span>
-                              {ans}
-                              {(() => {
-                                const simEntry = group.response_similarities?.find((item) => item.answer === ans);
-                                if (!simEntry || typeof simEntry.similarity !== 'number') return null;
-                                return (
-                                  <span className="ml-2 text-[11px] text-gray-500">
-                                    ({Math.round(simEntry.similarity * 100)}% match)
-                                  </span>
-                                );
-                              })()}
-                            </span>
+                    <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/60">
+                      {group.raw_answers.map((ans, i) => {
+                        const simEntry = group.response_similarities?.find((item) => item.answer === ans);
+                        const sim = simEntry && typeof simEntry.similarity === 'number' ? simEntry.similarity : null;
+                        const simPct = sim != null ? Math.round(sim * 100) : null;
+                        const lowConfidence = sim != null && sim < 0.65;
+                        return (
+                          <li key={i} className="group/answer flex items-center justify-between gap-2 px-3 py-1.5 text-xs">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="truncate text-slate-800">{ans}</span>
+                              {simPct != null && (
+                                <span
+                                  className={
+                                    'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ring-1 ring-inset ' +
+                                    (lowConfidence
+                                      ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                                      : 'bg-slate-100 text-slate-600 ring-slate-200')
+                                  }
+                                  title={lowConfidence ? 'Low-confidence answer' : 'Match score'}
+                                >
+                                  {simPct}%
+                                </span>
+                              )}
+                            </div>
                             <button
-                                onClick={() => handleOpenMoveModal(ans, group.canonical_name)}
-                                className="px-2 py-0.5 text-xs text-gray-500 hover:text-indigo-600 hover:bg-indigo-100 rounded-md"
-                                title="Move this answer to another group"
+                              onClick={() => handleOpenMoveModal(ans, group.canonical_name)}
+                              className="shrink-0 rounded-md px-2 py-0.5 text-[11px] text-slate-500 hover:bg-brand-50 hover:text-brand-700"
+                              title="Move this answer to another group"
                             >
-                                Move
+                              Move
                             </button>
                           </li>
-                      ))}
-                      </ul>
+                        );
+                      })}
+                    </ul>
                   )}
                 </div>
               ))}
             </div>
           ) : groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length === 0 ? (
-            <div className="rounded-md border border-amber-100 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
               <span className="font-medium">No groups in this run.</span>{' '}
-              <span className="text-amber-900/90">
+              <span className="text-amber-800">
                 See the latest processing status above — you may need more or more varied answers.
               </span>
             </div>
           ) : !groupedResults ? (
-            <p className="text-sm italic text-gray-500">
+            <p className="text-sm italic text-slate-500">
               Grouped answers will list here after the first successful processing run.
             </p>
           ) : (
-            <p className="text-sm text-gray-500">Unable to load grouped results.</p>
+            <p className="text-sm text-slate-500">Unable to load grouped results.</p>
           )}
+          </div>
         </div>
 
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-3">Raw Responses ({rawResponses.length})</h3>
-          {rawResponses.length > 0 ? (
-            <ul className="max-h-60 overflow-y-auto bg-gray-50 p-3 rounded border border-gray-200 text-sm">
-              {rawResponses.map(resp => (
-                <li key={resp._id || resp.id} className="py-1 border-b border-gray-100 last:border-b-0">
-                  {resp.answer_text}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500 text-sm">No raw responses submitted yet.</p>
-          )}
+        <div className="ff-card overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="ff-section-title">Raw responses</h3>
+                <p className="ff-section-subtitle">Every submission as received from participants.</p>
+              </div>
+            </div>
+            <span className="ff-chip">{rawResponses.length}</span>
+          </div>
+          <div className="px-5 py-4">
+            {rawResponses.length > 0 ? (
+              <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-1 text-sm">
+                {rawResponses.map((resp) => (
+                  <li key={resp._id || resp.id} className="py-1.5 text-slate-700">
+                    {resp.answer_text}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm italic text-slate-500">No raw responses submitted yet.</p>
+            )}
+          </div>
         </div>
 
         {processingHistory.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">Processing History</h3>
-            <div className="space-y-2 bg-gray-50 border border-gray-200 rounded p-3 max-h-64 overflow-y-auto">
+          <details className="ff-card overflow-hidden">
+            <summary className="flex cursor-pointer items-center justify-between gap-2 border-b border-slate-200 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                    <path d="M12 8v4l3 2" />
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="ff-section-title">Processing history (compact)</h3>
+                  <p className="ff-section-subtitle">Lightweight log of past runs — open the full Processing runs section for actions.</p>
+                </div>
+              </div>
+              <span className="ff-chip">{processingHistory.length}</span>
+            </summary>
+            <div className="px-5 py-4">
+            <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 p-3">
               {processingHistory.map((run) => (
-                <div key={run.run_id} className="bg-white border border-gray-200 rounded p-2 text-xs text-gray-700">
+                <div key={run.run_id} className="rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-700">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <StatusBadge status={run.status} uppercase={false} />
-                    <span className="text-gray-500">{formatUtcLabel(run.run_timestamp_utc)}</span>
+                    <span className="text-slate-500">{formatUtcLabel(run.run_timestamp_utc)}</span>
                   </div>
-                  <div className="mt-1 text-gray-600">
-                    in: {run.input_answer_count ?? '-'} | processed: {run.processed_answer_count ?? '-'} | excluded: {run.excluded_answer_count ?? '-'} | out: {run.output_group_count ?? '-'}
+                  <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-slate-600 sm:grid-cols-4">
+                    <span><span className="text-slate-400">in</span> {run.input_answer_count ?? '—'}</span>
+                    <span><span className="text-slate-400">processed</span> {run.processed_answer_count ?? '—'}</span>
+                    <span><span className="text-slate-400">excluded</span> {run.excluded_answer_count ?? '—'}</span>
+                    <span><span className="text-slate-400">out</span> {run.output_group_count ?? '—'}</span>
                   </div>
-                  <div className="mt-1 text-gray-600">
-                    label: {run.run_label || '-'} | model: {run.embedding_model || run.model_name || '-'} | {formatPipelineRun(run)} | prep: {run.preprocessing_descriptor || '-'} | emb: {run.embedding_descriptor || '-'}
+                  <div className="mt-1 text-slate-600">
+                    <span className="text-slate-400">label</span> {run.run_label || '—'} · <span className="text-slate-400">model</span> {run.embedding_model || run.model_name || '—'} · {formatPipelineRun(run)}
                   </div>
                   {(run.silhouette != null || run.calinski_harabasz != null || run.davies_bouldin != null) && (
-                    <div className="mt-1 text-gray-600">
-                      metrics: silhouette {run.silhouette ?? '-'} | CH {run.calinski_harabasz ?? '-'} | DB {run.davies_bouldin ?? '-'}
+                    <div className="mt-1 text-slate-600">
+                      <span className="text-slate-400">metrics</span> silhouette {run.silhouette ?? '—'} · CH {run.calinski_harabasz ?? '—'} · DB {run.davies_bouldin ?? '—'}
                     </div>
                   )}
                   {run.excluded_words_used && run.excluded_words_used.length > 0 && (
-                    <div className="mt-1 text-gray-600">
-                      excluded words: {run.excluded_words_used.join(', ')}
+                    <div className="mt-1 text-slate-600">
+                      <span className="text-slate-400">excluded words</span> {run.excluded_words_used.join(', ')}
                     </div>
                   )}
-                  {run.fixed_k != null && (
-                    <div className="mt-1 text-gray-600">
-                      fixed_k: {run.fixed_k}
-                    </div>
-                  )}
-                  {run.min_k != null && run.max_k != null && (
-                    <div className="mt-1 text-gray-600">
-                      k range: {run.min_k} - {run.max_k}
-                    </div>
-                  )}
-                  {run.selected_k != null && (
-                    <div className="mt-1 text-gray-600">
-                      selected_k: {run.selected_k}
-                    </div>
-                  )}
-                  {run.error_summary && <div className="mt-1 text-red-700">error: {run.error_summary}</div>}
+                  {run.error_summary && <div className="mt-1 text-rose-700">error: {run.error_summary}</div>}
                 </div>
               ))}
             </div>
-          </div>
+            </div>
+          </details>
         )}
       </div>
     </>
