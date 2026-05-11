@@ -116,6 +116,8 @@ class SurveyGroupedResults(BaseModel):
         description="Optional review hints of semantically close output groups",
     )
     processing_history: List[ProcessingRunHistoryEntry] = Field(default_factory=list, description="Most recent processing runs (newest first)")
+    active_run_id: Optional[str] = Field(default=None, description="run_id of the snapshot currently exposed as the active grouped result")
+    manual_edits_applied: bool = Field(default=False, description="True when the active result has been edited (rename/move/merge) since the last run was activated")
 
 class UpdateCanonicalNameRequest(BaseModel):
     new_canonical_name: str = Field(..., min_length=1, description="The new canonical name for the group.")

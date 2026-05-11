@@ -43,3 +43,4 @@ def get_database() -> AsyncIOMotorDatabase:
 SURVEY_COLLECTION = "surveys"
 RESPONSE_COLLECTION = "responses"
 GROUPED_RESULTS_COLLECTION = "grouped_results"
+SURVEY_PROCESSING_RUNS_COLLECTION = "survey_processing_runs"

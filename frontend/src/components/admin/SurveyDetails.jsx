@@ -5,6 +5,7 @@ import SurveyResultsChart from './SurveyResultsChart';
 import MoveAnswerModal from './MoveAnswerModal';
 import MergeGroupsModal from './MergeGroupsModal';
 import SemanticSpaceChart from './SemanticSpaceChart';
+import RunPreviewModal from './RunPreviewModal';
 
 const POLL_MS = 2500;
 
@@ -118,6 +119,17 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [participantLinkCopied, setParticipantLinkCopied] = useState(false);
   const [processingConfig, setProcessingConfig] = useState(DEFAULT_PROCESSING_CONFIG);
 
+  const [processingRuns, setProcessingRuns] = useState([]);
+  const [isLoadingRuns, setIsLoadingRuns] = useState(false);
+  const [runsError, setRunsError] = useState('');
+  const [previewRun, setPreviewRun] = useState(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [activatingRunId, setActivatingRunId] = useState(null);
+  const [runsActionMessage, setRunsActionMessage] = useState('');
+  const [useSettingsRunId, setUseSettingsRunId] = useState(null);
+
   const participantSurveyUrl = useMemo(() => {
     if (!surveyId || typeof window === 'undefined') return '';
     try {
@@ -127,6 +139,22 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
       return u.toString();
     } catch {
       return `?mode=participant&surveyId=${encodeURIComponent(surveyId)}`;
+    }
+  }, [surveyId]);
+
+  const fetchProcessingRuns = useCallback(async () => {
+    if (!surveyId) return;
+    setIsLoadingRuns(true);
+    setRunsError('');
+    try {
+      const res = await apiClient.get(`/surveys/${surveyId}/processing-runs`);
+      setProcessingRuns(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Error loading processing runs:', err);
+      setRunsError('Failed to load processing runs.');
+      setProcessingRuns([]);
+    } finally {
+      setIsLoadingRuns(false);
     }
   }, [surveyId]);
 
@@ -146,6 +174,13 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         setMergeError(null);
         setExportError('');
         setProcessingConfig(DEFAULT_PROCESSING_CONFIG);
+        setProcessingRuns([]);
+        setRunsError('');
+        setIsPreviewOpen(false);
+        setPreviewRun(null);
+        setPreviewError('');
+        setRunsActionMessage('');
+        setUseSettingsRunId(null);
         return;
     }
     setIsLoading(true);
@@ -161,6 +196,13 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setMergeError(null);
     setExportError('');
     setProcessingConfig(DEFAULT_PROCESSING_CONFIG);
+    setProcessingRuns([]);
+    setRunsError('');
+    setIsPreviewOpen(false);
+    setPreviewRun(null);
+    setPreviewError('');
+    setRunsActionMessage('');
+    setUseSettingsRunId(null);
 
 
     try {
@@ -206,7 +248,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     } finally {
         setIsLoading(false);
     }
-  }, [surveyId]);
+    void fetchProcessingRuns();
+  }, [surveyId, fetchProcessingRuns]);
 
   useEffect(() => {
     setSelectedForMerge([]);
@@ -253,6 +296,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
           } else {
             setProcessingMessage('');
           }
+          void fetchProcessingRuns();
         }
       } catch (e) {
         console.error('Error polling results:', e);
@@ -262,7 +306,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     void tick();
     const id = setInterval(tick, POLL_MS);
     return () => clearInterval(id);
-  }, [surveyId, groupedResults?.status]);
+  }, [surveyId, groupedResults?.status, fetchProcessingRuns]);
 
   const handleProcessSurvey = async () => {
     if (!surveyId) return;
@@ -530,6 +574,108 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     }
   };
 
+  const handlePreviewRun = useCallback(
+    async (run) => {
+      if (!surveyId || !run?.run_id) return;
+      setRunsActionMessage('');
+      setPreviewError('');
+      setIsPreviewOpen(true);
+      setPreviewRun(null);
+      setIsLoadingPreview(true);
+      try {
+        const res = await apiClient.get(
+          `/surveys/${surveyId}/processing-runs/${run.run_id}`,
+        );
+        setPreviewRun(res.data);
+      } catch (err) {
+        console.error('Error loading run snapshot:', err);
+        const detail = err.response?.data?.detail;
+        setPreviewError(detail ? String(detail) : 'Failed to load run snapshot.');
+      } finally {
+        setIsLoadingPreview(false);
+      }
+    },
+    [surveyId],
+  );
+
+  const handleClosePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewRun(null);
+    setPreviewError('');
+  };
+
+  const handleUseSettingsFromRun = useCallback((run) => {
+    if (!run) return;
+    const cfg = run.processing_config || {};
+    const clusteringMethod =
+      cfg.clustering_method || run.clustering_method || 'agglomerative_threshold';
+    const excludedWordsList = Array.isArray(cfg.excluded_words)
+      ? cfg.excluded_words
+      : Array.isArray(run.excluded_words_used)
+        ? run.excluded_words_used
+        : [];
+    const useExcluded =
+      typeof cfg.use_excluded_words === 'boolean'
+        ? cfg.use_excluded_words
+        : typeof run.use_excluded_words === 'boolean'
+          ? run.use_excluded_words
+          : excludedWordsList.length > 0;
+    setProcessingConfig({
+      run_label: cfg.run_label ?? run.run_label ?? '',
+      clustering_method: clusteringMethod,
+      distance_threshold:
+        cfg.distance_threshold ?? run.distance_threshold ?? DEFAULT_PROCESSING_CONFIG.distance_threshold,
+      min_k: cfg.min_k ?? run.min_k ?? DEFAULT_PROCESSING_CONFIG.min_k,
+      max_k: cfg.max_k ?? run.max_k ?? DEFAULT_PROCESSING_CONFIG.max_k,
+      fixed_k:
+        cfg.fixed_k ?? run.fixed_k ?? DEFAULT_PROCESSING_CONFIG.fixed_k,
+      embedding_model:
+        cfg.embedding_model ?? run.embedding_model ?? DEFAULT_PROCESSING_CONFIG.embedding_model,
+      excluded_words: excludedWordsList.join(', '),
+      use_excluded_words: Boolean(useExcluded),
+    });
+    setRunsActionMessage(
+      'Settings loaded. Review them and click Process responses to run again.',
+    );
+    setUseSettingsRunId(run.run_id || null);
+    setIsPreviewOpen(false);
+  }, []);
+
+  const handleActivateRun = useCallback(
+    async (run) => {
+      if (!surveyId || !run?.run_id) return;
+      const groupCount =
+        run.output_group_count ??
+        (Array.isArray(run.group_summary) ? run.group_summary.length : 0);
+      const confirmed = window.confirm(
+        `This will replace the currently displayed grouped result with the selected run output (${groupCount} group${groupCount === 1 ? '' : 's'}). It will not delete other runs.\n\nContinue?`,
+      );
+      if (!confirmed) return;
+      setActivatingRunId(run.run_id);
+      setRunsActionMessage('');
+      setError(null);
+      try {
+        await apiClient.post(
+          `/surveys/${surveyId}/processing-runs/${run.run_id}/activate`,
+        );
+        const refreshed = await apiClient.get(`/surveys/${surveyId}/results`);
+        setGroupedResults(refreshed.data);
+        await fetchProcessingRuns();
+        setRunsActionMessage(
+          `Activated run "${run.run_label || run.run_id}" as the current grouped result.`,
+        );
+        setIsPreviewOpen(false);
+      } catch (err) {
+        console.error('Error activating run:', err);
+        const detail = err.response?.data?.detail;
+        setError(detail ? String(detail) : 'Failed to activate this run.');
+      } finally {
+        setActivatingRunId(null);
+      }
+    },
+    [surveyId, fetchProcessingRuns],
+  );
+
   const handleCopyParticipantLink = async () => {
     if (!participantSurveyUrl) return;
     setError(null);
@@ -583,6 +729,25 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         groupsToMerge={[...selectedForMerge].sort()}
         apiError={mergeError}
         isSubmitting={isMerging}
+      />
+
+      <RunPreviewModal
+        show={isPreviewOpen}
+        onClose={handleClosePreview}
+        snapshot={previewRun}
+        active={groupedResults}
+        isLoading={isLoadingPreview}
+        error={previewError}
+        onUseSettings={handleUseSettingsFromRun}
+        onActivate={handleActivateRun}
+        canActivate={Boolean(
+          previewRun &&
+            previewRun.status === 'completed' &&
+            Array.isArray(previewRun.grouped_answers) &&
+            previewRun.grouped_answers.length > 0 &&
+            !previewRun.is_active,
+        )}
+        isActivating={activatingRunId === previewRun?.run_id}
       />
 
       <div className="bg-white shadow-md rounded-lg p-6 space-y-8">
@@ -861,7 +1026,167 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
             {statusUpdateMessage && <p className="mt-3 text-sm text-green-700">{statusUpdateMessage}</p>}
             {processingMessage && <p className="mt-3 text-sm text-blue-800">{processingMessage}</p>}
+            {runsActionMessage && (
+              <p className="mt-3 text-sm text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-md p-2">
+                {runsActionMessage}
+              </p>
+            )}
             {error && !groupNameEditError && <p className="mt-3 text-sm text-red-800 bg-red-50 border border-red-100 rounded-md p-2">{error}</p>}
+        </div>
+
+        <div>
+          <div className="flex flex-col gap-1 border-b border-gray-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Processing Runs</h3>
+              <p className="text-xs text-gray-500">
+                Stored snapshots from every processing run. Preview, reuse settings, or set as active.
+              </p>
+            </div>
+            <div className="text-xs text-gray-500">
+              {isLoadingRuns ? 'Loading…' : `${processingRuns.length} run${processingRuns.length === 1 ? '' : 's'}`}
+            </div>
+          </div>
+          {runsError && (
+            <p className="mt-2 text-sm text-red-700 bg-red-50 border border-red-100 rounded-md p-2">{runsError}</p>
+          )}
+          {!isLoadingRuns && processingRuns.length === 0 && !runsError && (
+            <p className="mt-3 text-sm italic text-gray-500">No processing runs yet.</p>
+          )}
+          {processingRuns.length > 0 && (
+            <ul className="mt-3 space-y-2 max-h-96 overflow-y-auto pr-1">
+              {processingRuns.map((run) => {
+                const groupCount =
+                  run.output_group_count ??
+                  (Array.isArray(run.group_summary) ? run.group_summary.length : 0);
+                const canActivate =
+                  run.status === 'completed' && !run.is_active && groupCount > 0;
+                const activateTitle = run.is_active
+                  ? 'This run is already active'
+                  : run.status !== 'completed'
+                    ? 'Only completed runs can be set as active'
+                    : groupCount === 0
+                      ? 'This run has no grouped data'
+                      : 'Replace the current grouped result with this run output';
+                return (
+                  <li
+                    key={run.run_id}
+                    className={`rounded-md border bg-white p-3 shadow-sm ${
+                      run.is_active ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-gray-200'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={run.status} uppercase={false} />
+                        {run.is_active && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
+                            Active
+                          </span>
+                        )}
+                        {run.run_label && (
+                          <span className="text-sm font-medium text-gray-800 truncate">
+                            {run.run_label}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {formatUtcLabel(run.run_timestamp_utc)}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600 sm:grid-cols-4">
+                      <div>
+                        <span className="text-gray-500">Method:</span>{' '}
+                        <span className="text-gray-800">{run.clustering_method || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Model:</span>{' '}
+                        <span className="text-gray-800 truncate">
+                          {run.embedding_model || run.model_name || '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Groups:</span>{' '}
+                        <span className="text-gray-800 tabular-nums">{groupCount || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Processed:</span>{' '}
+                        <span className="text-gray-800 tabular-nums">
+                          {run.processed_answer_count ?? '—'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Excluded:</span>{' '}
+                        <span className="text-gray-800 tabular-nums">
+                          {run.excluded_answer_count ?? '—'}
+                        </span>
+                      </div>
+                      {run.clustering_method === 'agglomerative_threshold' && (
+                        <div>
+                          <span className="text-gray-500">Threshold:</span>{' '}
+                          <span className="text-gray-800 tabular-nums">
+                            {run.distance_threshold ?? '—'}
+                          </span>
+                        </div>
+                      )}
+                      {run.clustering_method === 'kmeans_auto_k' && (
+                        <>
+                          <div>
+                            <span className="text-gray-500">K range:</span>{' '}
+                            <span className="text-gray-800 tabular-nums">
+                              {run.min_k ?? '—'} - {run.max_k ?? '—'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Selected K:</span>{' '}
+                            <span className="text-gray-800 tabular-nums">
+                              {run.selected_k ?? '—'}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {run.clustering_method === 'kmeans_fixed_k' && (
+                        <div>
+                          <span className="text-gray-500">Fixed K:</span>{' '}
+                          <span className="text-gray-800 tabular-nums">
+                            {run.fixed_k ?? '—'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePreviewRun(run)}
+                        className="rounded-md bg-white px-3 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+                      >
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUseSettingsFromRun(run)}
+                        className="rounded-md bg-slate-700 px-3 py-1 text-xs font-medium text-white hover:bg-slate-800"
+                      >
+                        Use settings
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleActivateRun(run)}
+                        disabled={!canActivate || activatingRunId === run.run_id}
+                        title={activateTitle}
+                        className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {activatingRunId === run.run_id ? 'Activating…' : 'Set as active result'}
+                      </button>
+                      {useSettingsRunId === run.run_id && (
+                        <span className="text-[11px] font-medium text-slate-600">
+                          Settings loaded
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (

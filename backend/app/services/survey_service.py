@@ -8,7 +8,13 @@ from uuid import uuid4
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 from ..models.grouped_result import SurveyGroupedResults, MoveAnswerRequest, MergeGroupsRequest
 from ..models.processing_config import ProcessingConfig
-from ..database import SURVEY_COLLECTION, RESPONSE_COLLECTION, GROUPED_RESULTS_COLLECTION
+from ..models.processing_run import ProcessingRunSummary, ProcessingRunSnapshot
+from ..database import (
+    SURVEY_COLLECTION,
+    RESPONSE_COLLECTION,
+    GROUPED_RESULTS_COLLECTION,
+    SURVEY_PROCESSING_RUNS_COLLECTION,
+)
 
 MAX_PROCESSING_HISTORY = 20
 
@@ -73,6 +79,7 @@ async def delete_survey(db: AsyncIOMotorDatabase, survey_id: str) -> bool:
     survey_id_obj = ObjectId(survey_id)
     await db[RESPONSE_COLLECTION].delete_many({"survey_id": survey_id_obj})
     await db[GROUPED_RESULTS_COLLECTION].delete_many({"survey_id": survey_id_obj})
+    await db[SURVEY_PROCESSING_RUNS_COLLECTION].delete_many({"survey_id": survey_id_obj})
     result = await db[SURVEY_COLLECTION].delete_one({"_id": survey_id_obj})
     return result.deleted_count > 0
 
@@ -211,7 +218,8 @@ async def update_group_canonical_name(
         {
             "$set": {
                 "grouped_answers.$.canonical_name": new_canonical_name, 
-                "processing_time_utc": datetime.utcnow() 
+                "processing_time_utc": datetime.utcnow(),
+                "manual_edits_applied": True,
             }
         }
     )
@@ -304,7 +312,8 @@ async def move_answer_between_groups(
         {"survey_id": survey_id_obj},
         {"$set": {
             "grouped_answers": final_grouped_answers_for_model,
-            "processing_time_utc": datetime.utcnow()
+            "processing_time_utc": datetime.utcnow(),
+            "manual_edits_applied": True,
         }}
     )
 
@@ -360,7 +369,8 @@ async def merge_groups(
         {"survey_id": survey_id_obj},
         {"$set": {
             "grouped_answers": remaining_groups,
-            "processing_time_utc": datetime.utcnow()
+            "processing_time_utc": datetime.utcnow(),
+            "manual_edits_applied": True,
         }}
     )
 
@@ -369,4 +379,162 @@ async def merge_groups(
         if final_results_doc:
             return SurveyGroupedResults(**final_results_doc)
 
-    return None 
+    return None
+
+
+# --- Processing runs (snapshots) -------------------------------------------------
+
+_RUN_SUMMARY_PROJECTION = {
+    "grouped_answers": 0,
+    "similar_group_pairs": 0,
+    "processing_config": 0,
+    "errors": 0,
+}
+
+
+async def list_processing_runs(
+    db: AsyncIOMotorDatabase, survey_id: str
+) -> Optional[List[ProcessingRunSummary]]:
+    """Newest-first lightweight list of processing run snapshots for a survey."""
+    if not ObjectId.is_valid(survey_id):
+        return None
+    survey_id_obj = ObjectId(survey_id)
+
+    active_run_id: Optional[str] = None
+    results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one(
+        {"survey_id": survey_id_obj}, {"active_run_id": 1}
+    )
+    if results_doc:
+        active_run_id = results_doc.get("active_run_id")
+
+    cursor = (
+        db[SURVEY_PROCESSING_RUNS_COLLECTION]
+        .find({"survey_id": survey_id_obj}, _RUN_SUMMARY_PROJECTION)
+        .sort("run_timestamp_utc", -1)
+    )
+    docs = await cursor.to_list(length=200)
+    summaries: List[ProcessingRunSummary] = []
+    for doc in docs:
+        doc.setdefault("group_summary", [])
+        doc.setdefault("excluded_words_used", [])
+        doc["is_active"] = bool(active_run_id and doc.get("run_id") == active_run_id)
+        summaries.append(ProcessingRunSummary(**doc))
+    return summaries
+
+
+async def get_processing_run(
+    db: AsyncIOMotorDatabase, survey_id: str, run_id: str
+) -> Optional[ProcessingRunSnapshot]:
+    """Return the full snapshot for one processing run, or None if missing."""
+    if not ObjectId.is_valid(survey_id) or not run_id:
+        return None
+    survey_id_obj = ObjectId(survey_id)
+
+    doc = await db[SURVEY_PROCESSING_RUNS_COLLECTION].find_one(
+        {"survey_id": survey_id_obj, "run_id": run_id}
+    )
+    if not doc:
+        return None
+
+    active_run_id: Optional[str] = None
+    results_doc = await db[GROUPED_RESULTS_COLLECTION].find_one(
+        {"survey_id": survey_id_obj}, {"active_run_id": 1}
+    )
+    if results_doc:
+        active_run_id = results_doc.get("active_run_id")
+
+    doc.setdefault("group_summary", [])
+    doc.setdefault("grouped_answers", [])
+    doc.setdefault("similar_group_pairs", [])
+    doc.setdefault("processing_config", {})
+    doc.setdefault("excluded_words_used", [])
+    doc.setdefault("errors", [])
+    doc["is_active"] = bool(active_run_id and doc.get("run_id") == active_run_id)
+    return ProcessingRunSnapshot(**doc)
+
+
+class ActivateRunError(Exception):
+    """Raised by activate_processing_run when activation is not allowed."""
+
+    def __init__(self, message: str, status_code: int = 400):
+        super().__init__(message)
+        self.message = message
+        self.status_code = status_code
+
+
+async def activate_processing_run(
+    db: AsyncIOMotorDatabase, survey_id: str, run_id: str
+) -> SurveyGroupedResults:
+    """Copy a completed run snapshot into grouped_results as the active result."""
+    if not ObjectId.is_valid(survey_id):
+        raise ActivateRunError("Invalid survey ID format", 400)
+    survey_id_obj = ObjectId(survey_id)
+
+    snapshot = await db[SURVEY_PROCESSING_RUNS_COLLECTION].find_one(
+        {"survey_id": survey_id_obj, "run_id": run_id}
+    )
+    if not snapshot:
+        raise ActivateRunError(
+            f"Processing run '{run_id}' not found for survey '{survey_id}'", 404
+        )
+
+    if snapshot.get("status") != "completed":
+        raise ActivateRunError(
+            "Only completed runs can be set as the active result.", 400
+        )
+
+    grouped_answers = snapshot.get("grouped_answers") or []
+    if not grouped_answers:
+        raise ActivateRunError(
+            "Selected run has no grouped result data to activate.", 400
+        )
+
+    now = datetime.utcnow()
+    activation_doc = {
+        "survey_id": survey_id_obj,
+        "status": "completed",
+        "processing_time_utc": now,
+        "grouped_answers": grouped_answers,
+        "similar_group_pairs": snapshot.get("similar_group_pairs") or [],
+        "errors": [],
+        "run_label": snapshot.get("run_label"),
+        "input_answer_count": snapshot.get("input_answer_count"),
+        "processed_answer_count": snapshot.get("processed_answer_count"),
+        "excluded_answer_count": snapshot.get("excluded_answer_count"),
+        "output_group_count": snapshot.get("output_group_count")
+        or len(grouped_answers),
+        "model_name": snapshot.get("model_name"),
+        "embedding_model": snapshot.get("embedding_model"),
+        "clustering_method": snapshot.get("clustering_method"),
+        "distance_threshold": snapshot.get("distance_threshold"),
+        "min_k": snapshot.get("min_k"),
+        "max_k": snapshot.get("max_k"),
+        "fixed_k": snapshot.get("fixed_k"),
+        "selected_k": snapshot.get("selected_k"),
+        "silhouette": snapshot.get("silhouette"),
+        "calinski_harabasz": snapshot.get("calinski_harabasz"),
+        "davies_bouldin": snapshot.get("davies_bouldin"),
+        "excluded_words_used": snapshot.get("excluded_words_used") or [],
+        "preprocessing_descriptor": snapshot.get("preprocessing_descriptor"),
+        "embedding_descriptor": snapshot.get("embedding_descriptor"),
+        "active_run_id": run_id,
+        "manual_edits_applied": False,
+    }
+
+    await db[GROUPED_RESULTS_COLLECTION].update_one(
+        {"survey_id": survey_id_obj},
+        {"$set": activation_doc},
+        upsert=True,
+    )
+
+    updated_doc = await db[GROUPED_RESULTS_COLLECTION].find_one(
+        {"survey_id": survey_id_obj}
+    )
+    if not updated_doc:
+        raise ActivateRunError("Activation failed to persist.", 500)
+
+    updated_doc.setdefault("processing_history", [])
+    updated_doc.setdefault("similar_group_pairs", [])
+    updated_doc.setdefault("excluded_words_used", [])
+    updated_doc.setdefault("errors", [])
+    return SurveyGroupedResults(**updated_doc)

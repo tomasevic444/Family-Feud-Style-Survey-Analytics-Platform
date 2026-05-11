@@ -9,7 +9,11 @@ from typing import List
 from uuid import uuid4
 
 from .nlp import nlp_pipeline
-from .database import RESPONSE_COLLECTION, GROUPED_RESULTS_COLLECTION
+from .database import (
+    RESPONSE_COLLECTION,
+    GROUPED_RESULTS_COLLECTION,
+    SURVEY_PROCESSING_RUNS_COLLECTION,
+)
 from .models.grouped_result import SurveyGroupedResults, GroupedAnswer
 from .models.processing_config import ProcessingConfig
 import certifi
@@ -95,6 +99,104 @@ def _history_patch(
     }
 
 
+def _build_group_summary(grouped_answers: list) -> list[dict]:
+    """Compact [{canonical_name, count}] entries for lightweight history/list use."""
+    out: list[dict] = []
+    for g in grouped_answers or []:
+        if isinstance(g, dict):
+            name = g.get("canonical_name")
+            count = g.get("count")
+            ra = g.get("raw_answers") or g.get("raw_answers_in_group")
+        else:
+            name = getattr(g, "canonical_name", None)
+            count = getattr(g, "count", None)
+            ra = getattr(g, "raw_answers", None)
+        if name is None:
+            continue
+        if count is None:
+            try:
+                count = len(ra or [])
+            except Exception:
+                count = 0
+        out.append({"canonical_name": name, "count": int(count or 0)})
+    return out
+
+
+def _processing_config_snapshot(config: ProcessingConfig) -> dict:
+    """Settings shape suitable for refilling the Processing Settings form."""
+    return {
+        "run_label": config.run_label,
+        "clustering_method": config.clustering_method,
+        "distance_threshold": config.distance_threshold,
+        "min_k": config.min_k,
+        "max_k": config.max_k,
+        "fixed_k": config.fixed_k,
+        "embedding_model": config.embedding_model,
+        "excluded_words": list(config.excluded_words or []),
+        "use_excluded_words": bool(config.use_excluded_words),
+    }
+
+
+def _save_run_snapshot(
+    db,
+    *,
+    survey_id_obj: ObjectId,
+    run_id: str,
+    status: str,
+    config: ProcessingConfig,
+    meta: dict,
+    grouped_answers_docs: list[dict],
+    similar_group_pairs: list,
+    errors: list[str],
+    error_summary: str | None,
+    group_summary: list[dict],
+    started_at: datetime | None = None,
+) -> None:
+    """Insert/update the full snapshot for this run into survey_processing_runs."""
+    if not run_id:
+        logger.warning("snapshot: skip save (missing run_id) for survey_id=%s", survey_id_obj)
+        return
+    now = datetime.utcnow()
+    snapshot = {
+        "run_id": run_id,
+        "survey_id": survey_id_obj,
+        "run_label": config.run_label,
+        "status": status,
+        "run_timestamp_utc": started_at or now,
+        "processing_time_utc": now,
+        "clustering_method": config.clustering_method,
+        "embedding_model": meta.get("embedding_model", config.embedding_model),
+        "model_name": meta.get("model_name", config.embedding_model),
+        "distance_threshold": meta.get("distance_threshold", config.distance_threshold),
+        "min_k": meta.get("min_k", config.min_k),
+        "max_k": meta.get("max_k", config.max_k),
+        "fixed_k": meta.get("fixed_k", config.fixed_k),
+        "selected_k": meta.get("selected_k"),
+        "silhouette": meta.get("silhouette"),
+        "calinski_harabasz": meta.get("calinski_harabasz"),
+        "davies_bouldin": meta.get("davies_bouldin"),
+        "input_answer_count": meta.get("input_answer_count"),
+        "processed_answer_count": meta.get("processed_answer_count"),
+        "excluded_answer_count": meta.get("excluded_answer_count"),
+        "output_group_count": meta.get("output_group_count"),
+        "excluded_words_used": meta.get("excluded_words_used", []),
+        "use_excluded_words": bool(config.use_excluded_words),
+        "preprocessing_descriptor": meta.get("preprocessing_descriptor"),
+        "embedding_descriptor": meta.get("embedding_descriptor"),
+        "grouped_answers": grouped_answers_docs or [],
+        "similar_group_pairs": similar_group_pairs or [],
+        "group_summary": group_summary or [],
+        "processing_config": _processing_config_snapshot(config),
+        "errors": errors or [],
+        "error_summary": error_summary,
+    }
+    db[SURVEY_PROCESSING_RUNS_COLLECTION].update_one(
+        {"survey_id": survey_id_obj, "run_id": run_id},
+        {"$set": snapshot},
+        upsert=True,
+    )
+
+
 def _update_history_run(db, survey_id_obj: ObjectId, run_id: str, patch: dict) -> None:
     if not run_id:
         logger.warning("processing_history: skip update (missing run_id) for survey_id=%s", survey_id_obj)
@@ -140,6 +242,7 @@ def process_survey_responses_task(
     config = ProcessingConfig(**(processing_config or {}))
     run_meta: dict | None = None
     actual_run_id: str | None = None
+    run_started_at = datetime.utcnow()
     try:
         db_client = pymongo.MongoClient(settings.mongo_connection_string)
 
@@ -214,6 +317,20 @@ def process_survey_responses_task(
                 actual_run_id,
                 _history_patch(config, "completed_no_data", 0, 0, 0, 0, run_meta, "No valid answer texts found to process."),
             )
+            _save_run_snapshot(
+                db,
+                survey_id_obj=survey_id_obj,
+                run_id=actual_run_id,
+                status="completed_no_data",
+                config=config,
+                meta=_run_metadata(config, 0, 0, 0, 0, run_meta),
+                grouped_answers_docs=[],
+                similar_group_pairs=[],
+                errors=["No valid answer texts found to process."],
+                error_summary="No valid answer texts found to process.",
+                group_summary=[],
+                started_at=run_started_at,
+            )
             logger.info(f"Saved empty/no_data result for survey ID: {survey_id}")
             return {"status": "Completed (No Data)", "survey_id": survey_id}
 
@@ -275,6 +392,8 @@ def process_survey_responses_task(
         document_to_save = results_to_save_model.model_dump(by_alias=True, exclude_none=True, exclude={'id'})
         # Never $set processing_history from this payload: defaults to [] and would wipe queued entries.
         document_to_save.pop("processing_history", None)
+        document_to_save["active_run_id"] = actual_run_id
+        document_to_save["manual_edits_applied"] = False
 
         db[GROUPED_RESULTS_COLLECTION].update_one(
             {"survey_id": survey_id_obj},
@@ -286,6 +405,25 @@ def process_survey_responses_task(
             survey_id_obj,
             actual_run_id,
             _history_patch(config, "completed", n_in, n_processed, n_excluded, n_groups, run_meta, None),
+        )
+
+        grouped_answers_docs = [
+            ga.model_dump(exclude_none=False) for ga in grouped_answers_models
+        ]
+        group_summary = _build_group_summary(grouped_answers_docs)
+        _save_run_snapshot(
+            db,
+            survey_id_obj=survey_id_obj,
+            run_id=actual_run_id,
+            status="completed",
+            config=config,
+            meta=meta,
+            grouped_answers_docs=grouped_answers_docs,
+            similar_group_pairs=similar_group_pairs,
+            errors=[],
+            error_summary=None,
+            group_summary=group_summary,
+            started_at=run_started_at,
         )
         logger.info(f"Saved/Updated grouped results in MongoDB for survey ID: {survey_id}")
 
@@ -319,6 +457,20 @@ def process_survey_responses_task(
                         ObjectId(survey_id),
                         history_run_id,
                         _history_patch(config, "failed", n_in, n_processed, n_excluded, 0, run_meta, str(e)),
+                    )
+                    _save_run_snapshot(
+                        db,
+                        survey_id_obj=ObjectId(survey_id),
+                        run_id=history_run_id,
+                        status="failed",
+                        config=config,
+                        meta=_run_metadata(config, n_in, n_processed, n_excluded, 0, run_meta),
+                        grouped_answers_docs=[],
+                        similar_group_pairs=[],
+                        errors=[str(e)],
+                        error_summary=str(e),
+                        group_summary=[],
+                        started_at=run_started_at,
                     )
         except Exception as db_error:
             logger.error(f"Failed to save error state to DB for survey {survey_id}: {db_error}")

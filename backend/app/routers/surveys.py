@@ -9,7 +9,9 @@ from ..database import get_database
 from ..models.survey import SurveyQuestionCreate, SurveyQuestionUpdate, SurveyQuestionInDB
 from ..models.grouped_result import SurveyGroupedResults, UpdateCanonicalNameRequest, MoveAnswerRequest,  MergeGroupsRequest
 from ..models.processing_config import ProcessingConfig
+from ..models.processing_run import ProcessingRunSummary, ProcessingRunSnapshot
 from ..services import survey_service
+from ..services.survey_service import ActivateRunError
 from ..celery_worker import celery_app, process_survey_responses_task
 
 router = APIRouter(
@@ -243,3 +245,70 @@ async def merge_survey_groups(
             detail=f"Failed to merge groups for survey ID '{survey_id}'. Survey results or one of the source groups may not exist."
         )
     return updated_results
+
+
+@router.get(
+    "/{survey_id}/processing-runs",
+    response_model=List[ProcessingRunSummary],
+    summary="List processing runs",
+    description="Returns lightweight metadata for all stored processing run snapshots, newest first.",
+)
+async def list_processing_runs_endpoint(
+    survey_id: Annotated[str, Path(description="The ID of the survey whose runs to list")],
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid survey ID format: {survey_id}",
+        )
+    survey = await survey_service.get_survey_by_id(db, survey_id)
+    if survey is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Survey with id '{survey_id}' not found",
+        )
+    runs = await survey_service.list_processing_runs(db, survey_id)
+    return runs or []
+
+
+@router.get(
+    "/{survey_id}/processing-runs/{run_id}",
+    response_model=ProcessingRunSnapshot,
+    summary="Get a processing run snapshot",
+    description="Returns the full snapshot for a single processing run (grouped_answers included).",
+)
+async def get_processing_run_endpoint(
+    survey_id: Annotated[str, Path(description="The ID of the survey")],
+    run_id: Annotated[str, Path(description="The run_id of the processing run")],
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    if not ObjectId.is_valid(survey_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid survey ID format: {survey_id}",
+        )
+    snapshot = await survey_service.get_processing_run(db, survey_id, run_id)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Processing run '{run_id}' not found for survey '{survey_id}'.",
+        )
+    return snapshot
+
+
+@router.post(
+    "/{survey_id}/processing-runs/{run_id}/activate",
+    response_model=SurveyGroupedResults,
+    summary="Set a previous run as the active result",
+    description="Copies the snapshot's grouped_answers and metadata into the active grouped_results document. Does not rerun NLP and does not delete other runs.",
+)
+async def activate_processing_run_endpoint(
+    survey_id: Annotated[str, Path(description="The ID of the survey")],
+    run_id: Annotated[str, Path(description="The run_id of the processing run to activate")],
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    try:
+        return await survey_service.activate_processing_run(db, survey_id, run_id)
+    except ActivateRunError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message)
