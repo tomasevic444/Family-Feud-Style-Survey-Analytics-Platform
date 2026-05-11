@@ -16,6 +16,9 @@ import certifi
 
 logger = logging.getLogger(__name__)
 
+# Keep in sync with survey_service.MAX_PROCESSING_HISTORY (history $slice on push).
+_MAX_PROCESSING_HISTORY_SLICE = 20
+
 celery_app = Celery(
     'family_feud_tasks',
     broker=settings.celery_broker_url,
@@ -93,9 +96,33 @@ def _history_patch(
 
 
 def _update_history_run(db, survey_id_obj: ObjectId, run_id: str, patch: dict) -> None:
-    db[GROUPED_RESULTS_COLLECTION].update_one(
+    if not run_id:
+        logger.warning("processing_history: skip update (missing run_id) for survey_id=%s", survey_id_obj)
+        return
+    result = db[GROUPED_RESULTS_COLLECTION].update_one(
         {"survey_id": survey_id_obj, "processing_history.run_id": run_id},
         {"$set": {f"processing_history.$.{k}": v for k, v in patch.items()}},
+    )
+    if result.matched_count:
+        return
+    logger.warning(
+        "processing_history: no entry matched run_id=%s for survey_id=%s; pushing fallback entry",
+        run_id,
+        str(survey_id_obj),
+    )
+    fallback_entry = {"run_id": run_id, **patch}
+    db[GROUPED_RESULTS_COLLECTION].update_one(
+        {"survey_id": survey_id_obj},
+        {
+            "$push": {
+                "processing_history": {
+                    "$each": [fallback_entry],
+                    "$position": 0,
+                    "$slice": _MAX_PROCESSING_HISTORY_SLICE,
+                }
+            }
+        },
+        upsert=True,
     )
 
 
@@ -112,6 +139,7 @@ def process_survey_responses_task(
     raw_answer_texts: list[str] = []
     config = ProcessingConfig(**(processing_config or {}))
     run_meta: dict | None = None
+    actual_run_id: str | None = None
     try:
         db_client = pymongo.MongoClient(settings.mongo_connection_string)
 
@@ -245,6 +273,8 @@ def process_survey_responses_task(
             similar_group_pairs=similar_group_pairs,
         )
         document_to_save = results_to_save_model.model_dump(by_alias=True, exclude_none=True, exclude={'id'})
+        # Never $set processing_history from this payload: defaults to [] and would wipe queued entries.
+        document_to_save.pop("processing_history", None)
 
         db[GROUPED_RESULTS_COLLECTION].update_one(
             {"survey_id": survey_id_obj},
@@ -282,11 +312,12 @@ def process_survey_responses_task(
                     {"$set": error_doc},
                     upsert=True
                 )
-                if run_id:
+                history_run_id = actual_run_id or run_id
+                if history_run_id:
                     _update_history_run(
                         db,
                         ObjectId(survey_id),
-                        run_id,
+                        history_run_id,
                         _history_patch(config, "failed", n_in, n_processed, n_excluded, 0, run_meta, str(e)),
                     )
         except Exception as db_error:
