@@ -123,3 +123,7 @@ stubs/
 
 # Ruff cache
 .ruff_cache/
+
+# Ephemeral evaluation script outputs (keep named evaluation_*.json tracked if desired)
+backend/data/.tmp_*
+backend/data/.tmp_*.json
