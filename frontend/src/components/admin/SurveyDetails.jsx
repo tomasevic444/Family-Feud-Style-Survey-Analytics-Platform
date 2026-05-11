@@ -91,6 +91,17 @@ function formatPipelineRun(run) {
   return parts.join(' · ');
 }
 
+function formatPercent(value) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+  return `${Math.round(value * 100)}%`;
+}
+
+function shortRunId(runId) {
+  if (!runId) return '';
+  const s = String(runId);
+  return s.length <= 8 ? s : s.slice(0, 8);
+}
+
 function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [survey, setSurvey] = useState(null);
   const [rawResponses, setRawResponses] = useState([]);
@@ -513,10 +524,94 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     groupedResults &&
     groupedResults.grouped_answers &&
     groupedResults.grouped_answers.length > 0;
-  const similarGroupPairs = groupedResults?.similar_group_pairs || [];
-  const reviewHintPairs = similarGroupPairs.filter(
-    (pair) => typeof pair?.similarity === 'number' && pair.similarity >= 0.75
+  const similarGroupPairs = useMemo(
+    () => groupedResults?.similar_group_pairs || [],
+    [groupedResults?.similar_group_pairs],
   );
+  const reviewHintPairs = useMemo(
+    () => similarGroupPairs.filter(
+      (pair) => typeof pair?.similarity === 'number' && pair.similarity >= 0.75
+    ),
+    [similarGroupPairs],
+  );
+  const activeRunContext = useMemo(() => {
+    const activeRun =
+      processingRuns.find((run) => run.is_active) ||
+      processingRuns.find((run) => run.run_id && run.run_id === groupedResults?.active_run_id) ||
+      null;
+    return {
+      label: activeRun?.run_label || groupedResults?.run_label || '',
+      runId: groupedResults?.active_run_id || activeRun?.run_id || '',
+      clusteringMethod: groupedResults?.clustering_method || activeRun?.clustering_method || '',
+      embeddingModel: groupedResults?.embedding_model || groupedResults?.model_name || activeRun?.embedding_model || activeRun?.model_name || '',
+    };
+  }, [processingRuns, groupedResults]);
+  const qualityInsights = useMemo(() => {
+    const groups = groupedResults?.grouped_answers || [];
+    const totalGroups = groups.length;
+    const totalGroupedAnswers = groups.reduce((sum, group) => {
+      if (typeof group.count === 'number') return sum + group.count;
+      return sum + (Array.isArray(group.raw_answers) ? group.raw_answers.length : 0);
+    }, 0);
+    const largestGroup = groups.reduce((best, group) => {
+      const count = typeof group.count === 'number' ? group.count : (group.raw_answers || []).length;
+      if (!best || count > best.count) return { canonical_name: group.canonical_name, count };
+      return best;
+    }, null);
+    const smallestGroup = groups.reduce((best, group) => {
+      const count = typeof group.count === 'number' ? group.count : (group.raw_answers || []).length;
+      if (!best || count < best.count) return { canonical_name: group.canonical_name, count };
+      return best;
+    }, null);
+    const averageGroupSize = totalGroups > 0 ? totalGroupedAnswers / totalGroups : null;
+
+    const weakClusters = [];
+    const lowConfidenceAnswers = [];
+    let hasSimilarityData = false;
+
+    groups.forEach((group) => {
+      const sims = (group.response_similarities || []).filter(
+        (item) => typeof item?.similarity === 'number',
+      );
+      if (sims.length === 0) return;
+      hasSimilarityData = true;
+      const averageSimilarity =
+        sims.reduce((sum, item) => sum + item.similarity, 0) / sims.length;
+      if (averageSimilarity < 0.7) {
+        weakClusters.push({
+          canonical_name: group.canonical_name,
+          count: typeof group.count === 'number' ? group.count : (group.raw_answers || []).length,
+          averageSimilarity,
+          reason: 'Low average response-to-cluster similarity',
+        });
+      }
+      sims.forEach((item) => {
+        if (item.similarity < 0.65) {
+          lowConfidenceAnswers.push({
+            answer: item.answer,
+            canonical_name: group.canonical_name,
+            similarity: item.similarity,
+          });
+        }
+      });
+    });
+
+    lowConfidenceAnswers.sort((a, b) => a.similarity - b.similarity);
+    weakClusters.sort((a, b) => a.averageSimilarity - b.averageSimilarity);
+
+    return {
+      totalGroups,
+      totalGroupedAnswers,
+      largestGroup,
+      smallestGroup,
+      averageGroupSize,
+      hasSimilarityData,
+      weakClusters,
+      lowConfidenceAnswers: lowConfidenceAnswers.slice(0, 5),
+      potentialReviewItemsCount:
+        weakClusters.length + Math.min(lowConfidenceAnswers.length, 5) + reviewHintPairs.length,
+    };
+  }, [groupedResults?.grouped_answers, reviewHintPairs]);
   const nonDefaultModel =
     processingConfig.embedding_model !== 'sentence-transformers/all-MiniLM-L6-v2';
 
@@ -963,6 +1058,23 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                         <span className="text-xs text-gray-500">Auto-refresh on</span>
                       )}
                     </div>
+                    {(activeRunContext.label || activeRunContext.runId || activeRunContext.clusteringMethod) && (
+                      <p className="mt-2 text-xs text-gray-600">
+                        Showing active result from:{' '}
+                        <span className="font-medium text-gray-800">
+                          {activeRunContext.label || 'Latest result'}
+                        </span>
+                        {activeRunContext.runId && (
+                          <span className="text-gray-500"> · run {shortRunId(activeRunContext.runId)}</span>
+                        )}
+                        {activeRunContext.clusteringMethod && (
+                          <span className="text-gray-500"> · {activeRunContext.clusteringMethod}</span>
+                        )}
+                        {activeRunContext.embeddingModel && (
+                          <span className="text-gray-500"> · {activeRunContext.embeddingModel}</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div>
@@ -1189,6 +1301,184 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
           )}
         </div>
 
+        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+          <div className="flex flex-col gap-1 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Cluster Quality Insights</h3>
+              <p className="text-xs text-gray-500">
+                Review signals for the active grouped result. These are review hints, not automatic merge recommendations.
+              </p>
+            </div>
+            {groupedResults?.manual_edits_applied && (
+              <span className="inline-flex self-start rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200">
+                Manual edits applied
+              </span>
+            )}
+          </div>
+
+          {!groupedResults ? (
+            <p className="mt-3 text-sm italic text-gray-500">
+              No active grouped result yet. Process responses to see quality insights.
+            </p>
+          ) : qualityInsights.totalGroups === 0 ? (
+            <p className="mt-3 text-sm italic text-gray-500">
+              No clusters are available in the active result.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-4">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Total groups</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                    {qualityInsights.totalGroups}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Grouped answers</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                    {qualityInsights.totalGroupedAnswers}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Largest group</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                    {qualityInsights.largestGroup
+                      ? `${qualityInsights.largestGroup.canonical_name} (${qualityInsights.largestGroup.count})`
+                      : '—'}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Smallest group</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                    {qualityInsights.smallestGroup
+                      ? `${qualityInsights.smallestGroup.canonical_name} (${qualityInsights.smallestGroup.count})`
+                      : '—'}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Avg group size</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">
+                    {qualityInsights.averageGroupSize != null
+                      ? qualityInsights.averageGroupSize.toFixed(1)
+                      : '—'}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Review items</p>
+                  <p className={`mt-1 text-lg font-semibold tabular-nums ${
+                    qualityInsights.potentialReviewItemsCount > 0 ? 'text-amber-700' : 'text-emerald-700'
+                  }`}>
+                    {qualityInsights.potentialReviewItemsCount}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-slate-900">Weak clusters</h4>
+                    <span className="text-xs tabular-nums text-slate-500">
+                      {qualityInsights.weakClusters.length}
+                    </span>
+                  </div>
+                  {!qualityInsights.hasSimilarityData ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Response similarity data is not available for this run.
+                    </p>
+                  ) : qualityInsights.weakClusters.length === 0 ? (
+                    <p className="mt-2 text-xs text-emerald-700">
+                      No clusters need review based on average response-to-cluster similarity.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
+                      {qualityInsights.weakClusters.map((group) => (
+                        <li key={group.canonical_name} className="rounded border border-amber-100 bg-amber-50 px-2 py-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-amber-950 truncate">{group.canonical_name}</span>
+                            <span className="rounded-full bg-amber-200 px-1.5 py-0.5 font-semibold text-amber-950">
+                              Needs review
+                            </span>
+                          </div>
+                          <div className="mt-1 text-amber-900">
+                            Avg match {formatPercent(group.averageSimilarity)} · {group.count} answers
+                          </div>
+                          <div className="text-amber-900/80">{group.reason}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-slate-900">Low-confidence answers</h4>
+                    <span className="text-xs tabular-nums text-slate-500">
+                      {qualityInsights.lowConfidenceAnswers.length}
+                    </span>
+                  </div>
+                  {!qualityInsights.hasSimilarityData ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Response similarity data is not available for this run.
+                    </p>
+                  ) : qualityInsights.lowConfidenceAnswers.length === 0 ? (
+                    <p className="mt-2 text-xs text-emerald-700">
+                      No low-confidence answers detected for this run.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
+                      {qualityInsights.lowConfidenceAnswers.map((item, idx) => (
+                        <li key={`${item.canonical_name}-${item.answer}-${idx}`} className="rounded border border-slate-100 bg-slate-50 px-2 py-1.5">
+                          <div className="font-medium text-slate-900">{item.answer || '—'}</div>
+                          <div className="mt-0.5 text-slate-600">
+                            Group: {item.canonical_name || '—'} · match {formatPercent(item.similarity)}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="rounded-md border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-slate-900">Similar group hints</h4>
+                    <span className="text-xs tabular-nums text-slate-500">{reviewHintPairs.length}</span>
+                  </div>
+                  {reviewHintPairs.length > 0 ? (
+                    <>
+                      <p className="mt-2 text-xs text-indigo-900/75">
+                        {reviewHintPairs.length} similar group pair{reviewHintPairs.length === 1 ? '' : 's'} may need review.
+                      </p>
+                      <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs text-indigo-900/90">
+                        {reviewHintPairs.slice(0, 5).map((pair, idx) => (
+                          <li key={`${pair.source_group}-${pair.target_group}-${idx}`} className="rounded border border-indigo-100 bg-indigo-50 px-2 py-1.5">
+                            <span className="font-medium">{pair.source_group}</span> ↔{' '}
+                            <span className="font-medium">{pair.target_group}</span>{' '}
+                            <span className="text-indigo-800/80">
+                              ({formatPercent(pair.similarity)})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {reviewHintPairs.length > 5 && (
+                        <p className="mt-1 text-[11px] text-indigo-900/70">
+                          +{reviewHintPairs.length - 5} more similar pair{reviewHintPairs.length - 5 === 1 ? '' : 's'}.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="mt-2 text-xs text-emerald-700">
+                      No strong similar-group hints (75%+ similarity) in this run.
+                    </p>
+                  )}
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    These are review hints, not automatic merge recommendations.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
           <>
     <SurveyResultsChart data={groupedResults.grouped_answers} />
@@ -1249,32 +1539,6 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               </div>
             )}
           </div>
-          {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 && (
-            <div className="mb-3 rounded-md border border-indigo-100 bg-indigo-50/50 p-3">
-              <h4 className="text-sm font-semibold text-indigo-900">Potentially similar groups</h4>
-              <p className="mt-1 text-[11px] text-indigo-900/70">
-                Review-only hints based on embedding similarity.
-              </p>
-              {reviewHintPairs.length > 0 ? (
-                <ul className="mt-2 space-y-1 text-xs text-indigo-900/90">
-                  {reviewHintPairs.map((pair, idx) => (
-                    <li key={`${pair.source_group}-${pair.target_group}-${idx}`}>
-                      <span className="font-medium">{pair.source_group}</span> ↔{' '}
-                      <span className="font-medium">{pair.target_group}</span>{' '}
-                      <span className="text-indigo-800/80">({Math.round((pair.similarity || 0) * 100)}%)</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-xs text-indigo-900/75">
-                  No strong cross-group similarity hints (75%+ similarity) in this run.
-                </p>
-              )}
-              <p className="mt-2 text-[11px] text-indigo-900/70">
-                These are not automatic merge recommendations. Review before merging.
-              </p>
-            </div>
-          )}
           {exportError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{exportError}</p>}
           {groupNameEditError && <p className="mb-2 text-sm text-red-600 bg-red-100 p-2 rounded">{groupNameEditError}</p>}
           {groupedResults && groupedResults.grouped_answers && groupedResults.grouped_answers.length > 0 ? (
