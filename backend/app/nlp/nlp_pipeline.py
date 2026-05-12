@@ -114,6 +114,9 @@ def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tu
                 "silhouette": sil,
                 "calinski_harabasz": ch,
                 "davies_bouldin": db,
+                "normalized_silhouette": None,
+                "normalized_calinski_harabasz": None,
+                "normalized_davies_bouldin": None,
                 "combined_score": None,
             }
         )
@@ -146,7 +149,11 @@ def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tu
         for c in valid_candidates:
             s_norm = _metric_norm(c["silhouette"], sil_lo, sil_hi)
             ch_norm = _metric_norm(c["calinski_harabasz"], ch_lo, ch_hi)
-            db_norm_inv = 1.0 - _metric_norm(c["davies_bouldin"], db_lo, db_hi)
+            db_norm = _metric_norm(c["davies_bouldin"], db_lo, db_hi)
+            db_norm_inv = 1.0 - db_norm
+            c["normalized_silhouette"] = s_norm
+            c["normalized_calinski_harabasz"] = ch_norm
+            c["normalized_davies_bouldin"] = db_norm
             c["combined_score"] = (s_norm + ch_norm + db_norm_inv) / 3.0
 
         best = max(valid_candidates, key=lambda c: (c["combined_score"], c["silhouette"]))
@@ -161,8 +168,11 @@ def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tu
                 "silhouette": round(c["silhouette"], 6) if c["silhouette"] is not None else None,
                 "calinski_harabasz": round(c["calinski_harabasz"], 6) if c["calinski_harabasz"] is not None else None,
                 "davies_bouldin": round(c["davies_bouldin"], 6) if c["davies_bouldin"] is not None else None,
+                "normalized_silhouette": round(c["normalized_silhouette"], 6) if c["normalized_silhouette"] is not None else None,
+                "normalized_calinski_harabasz": round(c["normalized_calinski_harabasz"], 6) if c["normalized_calinski_harabasz"] is not None else None,
+                "normalized_davies_bouldin": round(c["normalized_davies_bouldin"], 6) if c["normalized_davies_bouldin"] is not None else None,
                 "combined_score": round(c["combined_score"], 6) if c["combined_score"] is not None else None,
-                "is_selected": c["k"] == best["k"],
+                "selected": c["k"] == best["k"],
             }
         )
 

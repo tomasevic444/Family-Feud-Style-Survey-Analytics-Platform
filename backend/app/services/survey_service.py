@@ -537,6 +537,8 @@ async def activate_processing_run(
     }
     if snapshot.get("clustering_method") == "kmeans_auto_k":
         activation_doc["k_selection_diagnostics"] = snapshot.get("k_selection_diagnostics") or []
+    else:
+        activation_doc["k_selection_diagnostics"] = []
 
     await db[GROUPED_RESULTS_COLLECTION].update_one(
         {"survey_id": survey_id_obj},

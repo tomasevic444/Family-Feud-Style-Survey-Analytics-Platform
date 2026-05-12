@@ -34,7 +34,7 @@ function KMeansDiagnosticsPanel({
     if (!missingNote) return null;
     return (
       <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
-        K-selection diagnostics are available only for newer KMeans auto-K runs.
+        K selection diagnostics are available for newer KMeans auto-K runs.
       </div>
     );
   }
@@ -42,10 +42,16 @@ function KMeansDiagnosticsPanel({
   return (
     <div className="space-y-2 rounded-xl border border-accent-100 bg-gradient-to-br from-white via-accent-50/35 to-brand-50/25 p-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-800">
-        KMeans diagnostics
+        K Selection Diagnostics
       </p>
       <p className="text-xs text-slate-600">
-        KMeans auto-K tested multiple cluster counts and selected the best-scoring option.
+        Why this K was selected: the system evaluated multiple K values and chose the highest combined score.
+      </p>
+      <p className="text-[11px] text-slate-500">
+        Higher combined score is better. Davies-Bouldin is inverted during scoring, so lower raw values improve the combined score.
+      </p>
+      <p className="text-[11px] text-slate-500">
+        These metrics are diagnostic signals, not manual grading.
       </p>
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
         <span className="ff-chip-accent">
@@ -60,7 +66,7 @@ function KMeansDiagnosticsPanel({
       </div>
       <div className={`space-y-1.5 ${compact ? 'max-h-56 overflow-y-auto pr-1' : ''}`}>
         {rows.map((row) => {
-          const isSelected = Boolean(row?.is_selected) || (selectedK != null && row?.k === selectedK);
+          const isSelected = Boolean(row?.selected ?? row?.is_selected) || (selectedK != null && row?.k === selectedK);
           const barWidth = normalizeBar(row?.combined_score, maxCombinedScore);
           return (
             <div

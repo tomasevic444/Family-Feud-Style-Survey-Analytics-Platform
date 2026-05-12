@@ -1,5 +1,5 @@
 # backend/app/models/grouped_result.py
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 from typing import List, Dict, Any, Optional 
 from datetime import datetime
 from bson import ObjectId
@@ -57,8 +57,15 @@ class KSelectionDiagnosticEntry(BaseModel):
     silhouette: Optional[float] = Field(default=None, description="Silhouette score for this K")
     calinski_harabasz: Optional[float] = Field(default=None, description="Calinski-Harabasz score for this K")
     davies_bouldin: Optional[float] = Field(default=None, description="Davies-Bouldin score for this K")
+    normalized_silhouette: Optional[float] = Field(default=None, description="Min-max normalized silhouette")
+    normalized_calinski_harabasz: Optional[float] = Field(default=None, description="Min-max normalized Calinski-Harabasz")
+    normalized_davies_bouldin: Optional[float] = Field(default=None, description="Min-max normalized Davies-Bouldin (raw direction; lower is better)")
     combined_score: Optional[float] = Field(default=None, description="Normalized combined score used to select K")
-    is_selected: bool = Field(default=False, description="Whether this K was selected as best")
+    selected: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("selected", "is_selected"),
+        description="Whether this K was selected as best",
+    )
 
 
 # --- Model for the overall grouped results of a survey ---
