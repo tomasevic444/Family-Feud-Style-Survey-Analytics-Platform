@@ -7,6 +7,7 @@ import MergeGroupsModal from './MergeGroupsModal';
 import SemanticSpaceChart from './SemanticSpaceChart';
 import RunPreviewModal from './RunPreviewModal';
 import KMeansDiagnosticsPanel from './KMeansDiagnosticsPanel';
+import ImportResponsesModal from './ImportResponsesModal';
 
 const POLL_MS = 2500;
 
@@ -141,6 +142,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [activatingRunId, setActivatingRunId] = useState(null);
   const [runsActionMessage, setRunsActionMessage] = useState('');
   const [useSettingsRunId, setUseSettingsRunId] = useState(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
 
   const participantSurveyUrl = useMemo(() => {
     if (!surveyId || typeof window === 'undefined') return '';
@@ -193,6 +196,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         setPreviewError('');
         setRunsActionMessage('');
         setUseSettingsRunId(null);
+        setIsImportModalOpen(false);
+        setImportMessage('');
         return;
     }
     setIsLoading(true);
@@ -215,6 +220,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setPreviewError('');
     setRunsActionMessage('');
     setUseSettingsRunId(null);
+    setIsImportModalOpen(false);
+    setImportMessage('');
 
 
     try {
@@ -785,6 +792,19 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     }
   };
 
+  const handleImportedResponses = async (summary) => {
+    const message = `Imported ${summary?.imported_count ?? 0} responses. Skipped ${summary?.skipped_empty_count ?? 0} empty rows.`;
+    setImportMessage(message);
+    setError(null);
+    setIsImportModalOpen(false);
+    try {
+      const rawRes = await apiClient.get(`/surveys/${surveyId}/responses/raw`);
+      setRawResponses(rawRes.data);
+    } catch (e) {
+      console.error('Error refreshing raw responses after import:', e);
+    }
+  };
+
   if (!surveyId) {
     return (
       <div className="ff-card flex min-h-[40vh] flex-col items-center justify-center p-10 text-center">
@@ -884,6 +904,13 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
             !previewRun.is_active,
         )}
         isActivating={activatingRunId === previewRun?.run_id}
+      />
+      <ImportResponsesModal
+        show={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        surveyId={surveyId}
+        surveyQuestion={survey?.question_text}
+        onImported={handleImportedResponses}
       />
 
       <div className="space-y-6">
@@ -1945,9 +1972,23 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                 <p className="ff-section-subtitle">Every submission as received from participants.</p>
               </div>
             </div>
-            <span className="ff-chip">{rawResponses.length}</span>
+            <div className="flex items-center gap-2">
+              <span className="ff-chip">{rawResponses.length}</span>
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                className="ff-btn-secondary px-3 py-1.5 text-xs"
+              >
+                Import responses
+              </button>
+            </div>
           </div>
           <div className="px-5 py-4">
+            {importMessage && (
+              <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                {importMessage}
+              </div>
+            )}
             {rawResponses.length > 0 ? (
               <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-1 text-sm">
                 {rawResponses.map((resp) => (

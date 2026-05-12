@@ -33,3 +33,13 @@ class AnswerInDB(AnswerBase):
     id: PyObjectId = Field(..., alias="_id", description="Unique identifier for the answer (MongoDB ObjectId)")
     survey_id: PyObjectId = Field(..., description="ObjectId of the survey this answer belongs to")
     created_at: datetime = Field(..., description="Timestamp when the answer was submitted (UTC)")
+
+
+class CsvImportResponse(BaseModel):
+    """Summary payload returned after CSV response import."""
+    imported_count: int
+    skipped_empty_count: int
+    skipped_invalid_count: int
+    skipped_limit_count: int = 0
+    answer_column: str
+    total_rows: int

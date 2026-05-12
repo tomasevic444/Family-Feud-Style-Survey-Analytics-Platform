@@ -1,10 +1,10 @@
 # backend/app/routers/responses.py
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Path, Query 
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Path, Query, File, UploadFile, Form
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Annotated, List 
 
 from ..database import get_database
-from ..models.response import AnswerCreate, AnswerInDB
+from ..models.response import AnswerCreate, AnswerInDB, CsvImportResponse
 from ..services import response_service
 # Create an API router
 router = APIRouter(
@@ -55,3 +55,31 @@ async def read_raw_responses_for_survey(
     """
     raw_responses = await response_service.get_raw_responses_for_survey(db, survey_id)
     return raw_responses
+
+
+@router.post(
+    "/import-csv",
+    response_model=CsvImportResponse,
+    summary="Import responses from CSV into an existing survey",
+    description="Imports answer rows from a CSV file into the selected survey's raw responses.",
+)
+async def import_csv_responses_for_survey(
+    survey_id: Annotated[str, Path(description="The ID of the survey to import responses into")],
+    file: UploadFile = File(..., description="CSV file to import"),
+    answer_column: str = Form(..., description="Header column name containing answer text"),
+    delimiter: str = Form(",", description="CSV delimiter (single character, defaults to comma)"),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CSV file is required.",
+        )
+    file_bytes = await file.read()
+    return await response_service.import_responses_from_csv(
+        db=db,
+        survey_id=survey_id,
+        file_bytes=file_bytes,
+        answer_column=answer_column,
+        delimiter=delimiter,
+    )
