@@ -104,6 +104,8 @@ async def get_survey_results(db: AsyncIOMotorDatabase, survey_id: str) -> Option
             results_doc["processing_history"] = []
         if results_doc.get("similar_group_pairs") is None:
             results_doc["similar_group_pairs"] = []
+        if results_doc.get("k_selection_diagnostics") is None:
+            results_doc["k_selection_diagnostics"] = []
         if results_doc.get("excluded_words_used") is None:
             results_doc["excluded_words_used"] = []
         return SurveyGroupedResults(**results_doc)
@@ -180,6 +182,18 @@ async def mark_processing_queued(
         },
         upsert=True,
     )
+    if processing_config.clustering_method == "kmeans_auto_k":
+        await db[GROUPED_RESULTS_COLLECTION].update_one(
+            {"survey_id": survey_id_obj},
+            {"$set": {"k_selection_diagnostics": []}},
+            upsert=True,
+        )
+    else:
+        await db[GROUPED_RESULTS_COLLECTION].update_one(
+            {"survey_id": survey_id_obj},
+            {"$unset": {"k_selection_diagnostics": ""}},
+            upsert=True,
+        )
     await db[GROUPED_RESULTS_COLLECTION].update_one(
         {"survey_id": survey_id_obj},
         {
@@ -448,6 +462,7 @@ async def get_processing_run(
     doc.setdefault("similar_group_pairs", [])
     doc.setdefault("processing_config", {})
     doc.setdefault("excluded_words_used", [])
+    doc.setdefault("k_selection_diagnostics", [])
     doc.setdefault("errors", [])
     doc["is_active"] = bool(active_run_id and doc.get("run_id") == active_run_id)
     return ProcessingRunSnapshot(**doc)
@@ -520,6 +535,8 @@ async def activate_processing_run(
         "active_run_id": run_id,
         "manual_edits_applied": False,
     }
+    if snapshot.get("clustering_method") == "kmeans_auto_k":
+        activation_doc["k_selection_diagnostics"] = snapshot.get("k_selection_diagnostics") or []
 
     await db[GROUPED_RESULTS_COLLECTION].update_one(
         {"survey_id": survey_id_obj},
@@ -535,6 +552,7 @@ async def activate_processing_run(
 
     updated_doc.setdefault("processing_history", [])
     updated_doc.setdefault("similar_group_pairs", [])
+    updated_doc.setdefault("k_selection_diagnostics", [])
     updated_doc.setdefault("excluded_words_used", [])
     updated_doc.setdefault("errors", [])
     return SurveyGroupedResults(**updated_doc)

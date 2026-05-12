@@ -6,6 +6,7 @@ import MoveAnswerModal from './MoveAnswerModal';
 import MergeGroupsModal from './MergeGroupsModal';
 import SemanticSpaceChart from './SemanticSpaceChart';
 import RunPreviewModal from './RunPreviewModal';
+import KMeansDiagnosticsPanel from './KMeansDiagnosticsPanel';
 
 const POLL_MS = 2500;
 
@@ -546,6 +547,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
       embeddingModel: groupedResults?.embedding_model || groupedResults?.model_name || activeRun?.embedding_model || activeRun?.model_name || '',
     };
   }, [processingRuns, groupedResults]);
+  const activeKDiagnostics = groupedResults?.k_selection_diagnostics || [];
   const qualityInsights = useMemo(() => {
     const groups = groupedResults?.grouped_answers || [];
     const totalGroups = groups.length;
@@ -1261,6 +1263,18 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       </p>
                     )}
                   </div>
+                  {groupedResults.clustering_method === 'kmeans_auto_k' && (
+                    <div className="border-t border-slate-100 px-4 py-3">
+                      <KMeansDiagnosticsPanel
+                        diagnostics={activeKDiagnostics}
+                        selectedK={groupedResults.selected_k}
+                        minK={groupedResults.min_k}
+                        maxK={groupedResults.max_k}
+                        missingNote={activeKDiagnostics.length === 0}
+                        compact
+                      />
+                    </div>
+                  )}
                 </div>
                 {groupedResults.status === 'failed' && groupedResults.errors && groupedResults.errors.length > 0 && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">

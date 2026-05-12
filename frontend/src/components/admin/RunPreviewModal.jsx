@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import KMeansDiagnosticsPanel from './KMeansDiagnosticsPanel';
 
 function formatUtcLabel(iso) {
   if (!iso) return '—';
@@ -80,6 +81,7 @@ function RunPreviewModal({
   const similarGroupPairs = (snapshot?.similar_group_pairs || []).filter(
     (pair) => typeof pair?.similarity === 'number' && pair.similarity >= 0.75
   );
+  const kDiagnostics = snapshot?.k_selection_diagnostics || [];
   const runMetaPairs = [
     ['Run label', snapshot?.run_label || '—'],
     ['Status', snapshot?.status || '—'],
@@ -199,6 +201,17 @@ function RunPreviewModal({
                     />
                   </div>
                 </div>
+              )}
+
+              {snapshot?.clustering_method === 'kmeans_auto_k' && (
+                <KMeansDiagnosticsPanel
+                  diagnostics={kDiagnostics}
+                  selectedK={snapshot?.selected_k}
+                  minK={snapshot?.min_k}
+                  maxK={snapshot?.max_k}
+                  missingNote={kDiagnostics.length === 0}
+                  compact
+                />
               )}
 
               <div className="overflow-hidden rounded-lg border border-slate-200">

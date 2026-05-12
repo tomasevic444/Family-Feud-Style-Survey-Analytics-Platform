@@ -51,6 +51,16 @@ class ProcessingRunHistoryEntry(BaseModel):
     error_summary: Optional[str] = Field(default=None, description="Short error summary when run fails")
 
 
+class KSelectionDiagnosticEntry(BaseModel):
+    """Compact auto-K score diagnostics for one tested K."""
+    k: int = Field(..., description="Tested cluster count")
+    silhouette: Optional[float] = Field(default=None, description="Silhouette score for this K")
+    calinski_harabasz: Optional[float] = Field(default=None, description="Calinski-Harabasz score for this K")
+    davies_bouldin: Optional[float] = Field(default=None, description="Davies-Bouldin score for this K")
+    combined_score: Optional[float] = Field(default=None, description="Normalized combined score used to select K")
+    is_selected: bool = Field(default=False, description="Whether this K was selected as best")
+
+
 # --- Model for the overall grouped results of a survey ---
 class SurveyGroupedResults(BaseModel):
     """Represents the aggregated and grouped results for a survey."""
@@ -111,6 +121,10 @@ class SurveyGroupedResults(BaseModel):
     excluded_words_used: List[str] = Field(default_factory=list, description="Excluded words applied for this run")
     preprocessing_descriptor: Optional[str] = Field(default=None, description="Short label for answer preprocessing")
     embedding_descriptor: Optional[str] = Field(default=None, description="Short label for embedding normalization/encoding")
+    k_selection_diagnostics: List[KSelectionDiagnosticEntry] = Field(
+        default_factory=list,
+        description="Auto-K diagnostics for tested K values (kmeans_auto_k only)",
+    )
     similar_group_pairs: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="Optional review hints of semantically close output groups",

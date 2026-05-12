@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from bson import ObjectId
 
-from .grouped_result import GroupedAnswer
+from .grouped_result import GroupedAnswer, KSelectionDiagnosticEntry
 from .survey import PyObjectId
 
 
@@ -42,6 +42,7 @@ class ProcessingRunSummary(BaseModel):
     silhouette: Optional[float] = None
     calinski_harabasz: Optional[float] = None
     davies_bouldin: Optional[float] = None
+    k_selection_diagnostics: List[KSelectionDiagnosticEntry] = Field(default_factory=list)
     input_answer_count: Optional[int] = None
     processed_answer_count: Optional[int] = None
     excluded_answer_count: Optional[int] = None

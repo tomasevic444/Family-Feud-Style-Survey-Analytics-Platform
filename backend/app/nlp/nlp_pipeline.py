@@ -89,17 +89,24 @@ def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tu
             "silhouette": None,
             "calinski_harabasz": None,
             "davies_bouldin": None,
+            "k_selection_diagnostics": [],
         }
 
     candidates: List[Dict[str, Any]] = []
+    diagnostics: List[Dict[str, Any]] = []
     for k in range(lower, upper + 1):
         if k >= n:
             continue
         km = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = km.fit_predict(embeddings)
-        sil = float(silhouette_score(embeddings, labels))
-        ch = float(calinski_harabasz_score(embeddings, labels))
-        db = float(davies_bouldin_score(embeddings, labels))
+        try:
+            sil = float(silhouette_score(embeddings, labels))
+            ch = float(calinski_harabasz_score(embeddings, labels))
+            db = float(davies_bouldin_score(embeddings, labels))
+        except Exception:
+            sil = None
+            ch = None
+            db = None
         candidates.append(
             {
                 "k": k,
@@ -107,9 +114,16 @@ def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tu
                 "silhouette": sil,
                 "calinski_harabasz": ch,
                 "davies_bouldin": db,
+                "combined_score": None,
             }
         )
 
+    valid_candidates = [
+        c for c in candidates
+        if c["silhouette"] is not None
+        and c["calinski_harabasz"] is not None
+        and c["davies_bouldin"] is not None
+    ]
     if not candidates:
         return np.zeros(n, dtype=int), {
             "min_k": lower,
@@ -118,29 +132,48 @@ def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tu
             "silhouette": None,
             "calinski_harabasz": None,
             "davies_bouldin": None,
+            "k_selection_diagnostics": [],
         }
 
-    sil_vals = [c["silhouette"] for c in candidates]
-    ch_vals = [c["calinski_harabasz"] for c in candidates]
-    db_vals = [c["davies_bouldin"] for c in candidates]
-    sil_lo, sil_hi = min(sil_vals), max(sil_vals)
-    ch_lo, ch_hi = min(ch_vals), max(ch_vals)
-    db_lo, db_hi = min(db_vals), max(db_vals)
+    if valid_candidates:
+        sil_vals = [c["silhouette"] for c in valid_candidates]
+        ch_vals = [c["calinski_harabasz"] for c in valid_candidates]
+        db_vals = [c["davies_bouldin"] for c in valid_candidates]
+        sil_lo, sil_hi = min(sil_vals), max(sil_vals)
+        ch_lo, ch_hi = min(ch_vals), max(ch_vals)
+        db_lo, db_hi = min(db_vals), max(db_vals)
+
+        for c in valid_candidates:
+            s_norm = _metric_norm(c["silhouette"], sil_lo, sil_hi)
+            ch_norm = _metric_norm(c["calinski_harabasz"], ch_lo, ch_hi)
+            db_norm_inv = 1.0 - _metric_norm(c["davies_bouldin"], db_lo, db_hi)
+            c["combined_score"] = (s_norm + ch_norm + db_norm_inv) / 3.0
+
+        best = max(valid_candidates, key=lambda c: (c["combined_score"], c["silhouette"]))
+    else:
+        best = candidates[0]
+        best["combined_score"] = None
 
     for c in candidates:
-        s_norm = _metric_norm(c["silhouette"], sil_lo, sil_hi)
-        ch_norm = _metric_norm(c["calinski_harabasz"], ch_lo, ch_hi)
-        db_norm_inv = 1.0 - _metric_norm(c["davies_bouldin"], db_lo, db_hi)
-        c["combined_score"] = (s_norm + ch_norm + db_norm_inv) / 3.0
+        diagnostics.append(
+            {
+                "k": c["k"],
+                "silhouette": round(c["silhouette"], 6) if c["silhouette"] is not None else None,
+                "calinski_harabasz": round(c["calinski_harabasz"], 6) if c["calinski_harabasz"] is not None else None,
+                "davies_bouldin": round(c["davies_bouldin"], 6) if c["davies_bouldin"] is not None else None,
+                "combined_score": round(c["combined_score"], 6) if c["combined_score"] is not None else None,
+                "is_selected": c["k"] == best["k"],
+            }
+        )
 
-    best = max(candidates, key=lambda c: (c["combined_score"], c["silhouette"]))
     return best["labels"], {
         "min_k": lower,
         "max_k": upper,
         "selected_k": best["k"],
-        "silhouette": round(best["silhouette"], 6),
-        "calinski_harabasz": round(best["calinski_harabasz"], 6),
-        "davies_bouldin": round(best["davies_bouldin"], 6),
+        "silhouette": round(best["silhouette"], 6) if best["silhouette"] is not None else None,
+        "calinski_harabasz": round(best["calinski_harabasz"], 6) if best["calinski_harabasz"] is not None else None,
+        "davies_bouldin": round(best["davies_bouldin"], 6) if best["davies_bouldin"] is not None else None,
+        "k_selection_diagnostics": diagnostics,
     }
 
 

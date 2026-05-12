@@ -39,7 +39,7 @@ def _run_metadata(
     run_meta: dict | None = None,
 ) -> dict:
     run_meta = run_meta or {}
-    return {
+    meta = {
         "input_answer_count": input_count,
         "processed_answer_count": processed_count,
         "excluded_answer_count": excluded_count,
@@ -60,6 +60,9 @@ def _run_metadata(
         "preprocessing_descriptor": nlp_pipeline.PREPROCESSING_DESCRIPTOR,
         "embedding_descriptor": nlp_pipeline.EMBEDDING_DESCRIPTOR,
     }
+    if config.clustering_method == "kmeans_auto_k":
+        meta["k_selection_diagnostics"] = run_meta.get("k_selection_diagnostics", [])
+    return meta
 
 
 def _history_patch(
@@ -190,6 +193,8 @@ def _save_run_snapshot(
         "errors": errors or [],
         "error_summary": error_summary,
     }
+    if config.clustering_method == "kmeans_auto_k":
+        snapshot["k_selection_diagnostics"] = meta.get("k_selection_diagnostics", [])
     db[SURVEY_PROCESSING_RUNS_COLLECTION].update_one(
         {"survey_id": survey_id_obj, "run_id": run_id},
         {"$set": snapshot},
@@ -253,15 +258,23 @@ def process_survey_responses_task(
         survey_id_obj = ObjectId(survey_id)
         actual_run_id = run_id or str(uuid4())
 
+        processing_set_doc = {
+            "status": "processing",
+            "processing_time_utc": datetime.utcnow(),
+            "run_label": config.run_label,
+            "grouped_answers": [],
+            "errors": [],
+        }
+        if config.clustering_method == "kmeans_auto_k":
+            processing_set_doc["k_selection_diagnostics"] = []
+
+        update_doc = {"$set": processing_set_doc}
+        if config.clustering_method != "kmeans_auto_k":
+            update_doc["$unset"] = {"k_selection_diagnostics": ""}
+
         db[GROUPED_RESULTS_COLLECTION].update_one(
             {"survey_id": survey_id_obj},
-            {"$set": {
-                "status": "processing",
-                "processing_time_utc": datetime.utcnow(),
-                "run_label": config.run_label,
-                "grouped_answers": [],
-                "errors": [],
-            }},
+            update_doc,
             upsert=True,
         )
         _update_history_run(
@@ -382,6 +395,7 @@ def process_survey_responses_task(
             silhouette=meta["silhouette"],
             calinski_harabasz=meta["calinski_harabasz"],
             davies_bouldin=meta["davies_bouldin"],
+            k_selection_diagnostics=meta.get("k_selection_diagnostics", []),
             excluded_answer_count=meta["excluded_answer_count"],
             processed_answer_count=meta["processed_answer_count"],
             excluded_words_used=meta["excluded_words_used"],
