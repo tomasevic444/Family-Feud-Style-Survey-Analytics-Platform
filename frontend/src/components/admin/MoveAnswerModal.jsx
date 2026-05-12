@@ -73,10 +73,10 @@ function MoveAnswerModal({
       aria-modal="true"
       aria-labelledby="move-modal-title"
     >
-      <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-night-900/65 backdrop-blur-md" onClick={onClose} />
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-card-lift ring-1 ring-slate-200 animate-scale-in">
-        <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-4">
-          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+        <div className="flex items-start gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-brand-50/40 to-white px-5 py-4">
+          <span className="ff-brand-mark mt-0.5 h-9 w-9">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -85,7 +85,7 @@ function MoveAnswerModal({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="h-5 w-5"
+              className="relative z-10 h-5 w-5"
               aria-hidden="true"
             >
               <path d="M5 12h14" />

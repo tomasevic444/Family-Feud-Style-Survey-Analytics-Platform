@@ -94,12 +94,12 @@ function RunPreviewModal({
       aria-modal="true"
       aria-labelledby="run-preview-title"
     >
-      <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-night-900/65 backdrop-blur-md" onClick={onClose} />
 
       <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-card-lift ring-1 ring-slate-200 animate-scale-in">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-brand-50/40 to-accent-50/30 px-5 py-4">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+            <span className="ff-brand-mark mt-0.5 h-9 w-9">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -108,7 +108,7 @@ function RunPreviewModal({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="h-5 w-5"
+                className="relative z-10 h-5 w-5"
                 aria-hidden="true"
               >
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
@@ -119,7 +119,12 @@ function RunPreviewModal({
               <h3 id="run-preview-title" className="text-base font-semibold text-slate-900">
                 Run preview
               </h3>
-              <p className="mt-0.5 text-xs text-amber-700">
+              <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-amber-700">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v4" />
+                  <path d="M12 16h.01" />
+                </svg>
                 Preview only — this is not the active result.
               </p>
             </div>

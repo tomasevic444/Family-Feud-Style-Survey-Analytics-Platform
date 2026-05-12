@@ -60,12 +60,12 @@ function MergeGroupsModal({
       aria-labelledby="merge-modal-title"
     >
       <div
-        className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm"
+        className="absolute inset-0 bg-night-900/65 backdrop-blur-md"
         onClick={isSubmitting ? undefined : onClose}
       />
       <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-card-lift ring-1 ring-slate-200 animate-scale-in">
-        <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-4">
-          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100">
+        <div className="flex items-start gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-emerald-50/40 to-white px-5 py-4">
+          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-glow-emerald">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"

@@ -11,10 +11,10 @@ function getParticipantSurveyIdFromUrl() {
   return null;
 }
 
-function BrandMark({ size = 28 }) {
+function BrandMark({ size = 30 }) {
   return (
     <span
-      className="inline-flex items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-indigo-700 text-white shadow-sm"
+      className="ff-brand-mark"
       style={{ width: size, height: size }}
       aria-hidden="true"
     >
@@ -26,7 +26,7 @@ function BrandMark({ size = 28 }) {
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ width: size * 0.6, height: size * 0.6 }}
+        style={{ width: size * 0.55, height: size * 0.55, position: 'relative', zIndex: 1 }}
       >
         <path d="M3 3v18h18" />
         <path d="M7 14l3-3 3 3 5-6" />
@@ -37,29 +37,29 @@ function BrandMark({ size = 28 }) {
 
 function AppHeader({ mode = 'admin' }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-      <div className="container flex h-14 items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
+    <header className="ff-topbar sticky top-0 z-30">
+      <div className="container relative z-10 flex h-16 items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
           <BrandMark />
           <div className="leading-tight">
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-white">
               Family Feud Analytics
             </p>
-            <p className="text-[11px] text-slate-500">
-              Semantic survey clustering platform
+            <p className="text-[11px] text-slate-400">
+              AI Analytics Lab · Semantic survey clustering
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 sm:flex">
           {mode === 'admin' ? (
-            <span className="ff-chip">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-dot" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-inset ring-white/10 backdrop-blur">
+              <span className="ff-live-dot" />
               Admin workspace
             </span>
           ) : (
-            <span className="ff-chip">
-              <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse-dot" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-inset ring-white/10 backdrop-blur">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-400 shadow-[0_0_8px_rgba(34,211,238,0.7)]" />
               Participant view
             </span>
           )}
@@ -73,7 +73,7 @@ function App() {
   const participantSurveyId = getParticipantSurveyIdFromUrl();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <AppHeader mode={participantSurveyId ? 'participant' : 'admin'} />
 
       <main className="flex-1">
@@ -84,9 +84,15 @@ function App() {
         )}
       </main>
 
-      <footer className="mt-12 border-t border-slate-200 bg-white/60">
-        <div className="container py-4 text-center text-[11px] text-slate-500">
-          Family Feud Survey Analytics · diploma project
+      <footer className="border-t border-slate-200/70 bg-white/40 backdrop-blur">
+        <div className="container flex flex-col items-center justify-between gap-1 py-4 text-[11px] text-slate-500 sm:flex-row">
+          <span>
+            Family Feud Survey Analytics · diploma project
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-slate-400">
+            <span className="inline-block h-1 w-1 rounded-full bg-brand-400" />
+            Powered by semantic embeddings
+          </span>
         </div>
       </footer>
     </div>

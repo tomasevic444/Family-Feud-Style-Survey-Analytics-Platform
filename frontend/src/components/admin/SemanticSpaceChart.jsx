@@ -2,17 +2,18 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
+// Match SurveyResultsChart for visual cohesion.
 const PALETTE = [
   '#6366f1',
-  '#22c55e',
+  '#22d3ee',
+  '#10b981',
   '#f59e0b',
-  '#ec4899',
-  '#06b6d4',
   '#a855f7',
-  '#f43f5e',
-  '#14b8a6',
-  '#eab308',
   '#0ea5e9',
+  '#ec4899',
+  '#14b8a6',
+  '#f43f5e',
+  '#84cc16',
 ];
 
 const SemanticSpaceChart = ({ data }) => {
@@ -240,14 +241,24 @@ const SemanticSpaceChart = ({ data }) => {
 
   return (
     <div className="ff-card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
-        <div>
-          <h4 className="ff-section-title">Semantic space</h4>
-          <p className="ff-section-subtitle">
-            Cluster centroids projected to 2D · bubble size = response count
-          </p>
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-white via-accent-50/30 to-white px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600 text-white shadow-glow-cyan">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="9" cy="10" r="1" />
+              <circle cx="15" cy="13" r="1.5" />
+              <circle cx="13" cy="16" r="1" />
+            </svg>
+          </span>
+          <div>
+            <h4 className="ff-section-title">Semantic space</h4>
+            <p className="ff-section-subtitle">
+              Cluster centroids projected to 2D · bubble size = response count
+            </p>
+          </div>
         </div>
-        <span className="ff-chip">PCA · 2D</span>
+        <span className="ff-chip-accent">PCA · 2D</span>
       </div>
       <div ref={containerRef} className="px-3 py-3">
         {validData.length > 0 ? (
@@ -255,7 +266,7 @@ const SemanticSpaceChart = ({ data }) => {
         ) : (
           <div className="flex items-center justify-center px-4 py-12 text-center">
             <div>
-              <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+              <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-700 ring-1 ring-accent-100">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"

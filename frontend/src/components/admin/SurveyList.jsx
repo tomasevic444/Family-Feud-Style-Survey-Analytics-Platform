@@ -53,14 +53,22 @@ function SurveyList({ onSelectSurvey, selectedSurveyId }) {
 
   return (
     <div className="ff-card overflow-hidden">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-        <div>
-          <h2 className="ff-section-title">Surveys</h2>
-          <p className="ff-section-subtitle">
-            {isLoading
-              ? 'Loading…'
-              : `${surveys.length} total · ${activeCount} active`}
-          </p>
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-gradient-to-r from-white via-brand-50/50 to-white px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white shadow-glow">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+            </svg>
+          </span>
+          <div>
+            <h2 className="ff-section-title leading-tight">Surveys</h2>
+            <p className="ff-section-subtitle">
+              {isLoading
+                ? 'Loading…'
+                : `${surveys.length} total · ${activeCount} active`}
+            </p>
+          </div>
         </div>
         <span
           className="inline-flex items-center justify-center rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-100"
@@ -172,12 +180,18 @@ function SurveyList({ onSelectSurvey, selectedSurveyId }) {
                     onClick={() => onSelectSurvey(id)}
                     aria-current={isSelected ? 'true' : undefined}
                     className={
-                      'group block w-full rounded-xl border px-3 py-2.5 text-left transition ' +
+                      'group relative block w-full overflow-hidden rounded-xl border px-3 py-2.5 text-left transition ' +
                       (isSelected
-                        ? 'border-brand-200 bg-brand-50/70 shadow-sm ring-1 ring-brand-200'
+                        ? 'border-brand-300/70 bg-gradient-to-br from-brand-50 via-white to-accent-50/40 shadow-glow ring-1 ring-brand-200/70'
                         : 'border-transparent hover:border-slate-200 hover:bg-slate-50')
                     }
                   >
+                    {isSelected && (
+                      <span
+                        className="pointer-events-none absolute inset-y-1 left-0 w-0.5 rounded-r bg-gradient-to-b from-brand-500 to-accent-500"
+                        aria-hidden="true"
+                      />
+                    )}
                     <div className="flex items-start justify-between gap-3">
                       <p
                         className={

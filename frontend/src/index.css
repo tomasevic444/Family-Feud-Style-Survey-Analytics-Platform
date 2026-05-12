@@ -20,7 +20,7 @@
 
   *:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6366f1;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #6366f1;
     border-radius: 6px;
   }
 
@@ -44,12 +44,21 @@
 }
 
 @layer components {
+  /* -- Surface --------------------------------------------------- */
   .ff-card {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-card;
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-card;
   }
 
   .ff-card-hoverable {
     @apply ff-card transition hover:shadow-card-lift hover:-translate-y-[1px];
+  }
+
+  /* Translucent surface for dark backgrounds (subtle glassmorphism) */
+  .ff-glass {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    backdrop-filter: saturate(140%) blur(10px);
+    -webkit-backdrop-filter: saturate(140%) blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .ff-section-title {
@@ -60,11 +69,24 @@
     @apply text-xs text-slate-500;
   }
 
+  /* -- Buttons --------------------------------------------------- */
   .ff-btn {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .ff-btn-primary {
-    @apply ff-btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800;
+    @apply ff-btn relative text-white;
+    background-image: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #7c3aed 100%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.2) inset,
+      0 6px 16px -6px rgba(79, 70, 229, 0.55),
+      0 0 0 1px rgba(67, 56, 202, 0.4) inset;
+  }
+  .ff-btn-primary:hover:not(:disabled) {
+    background-image: linear-gradient(135deg, #4338ca 0%, #5b53f0 55%, #6d28d9 100%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.25) inset,
+      0 10px 24px -6px rgba(79, 70, 229, 0.55),
+      0 0 0 1px rgba(67, 56, 202, 0.5) inset;
   }
   .ff-btn-secondary {
     @apply ff-btn bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 hover:text-slate-900;
@@ -78,7 +100,12 @@
   .ff-btn-success {
     @apply ff-btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-700;
   }
+  /* For use on dark backgrounds (hero, participant) */
+  .ff-btn-on-dark {
+    @apply ff-btn bg-white/10 text-white ring-1 ring-inset ring-white/15 backdrop-blur hover:bg-white/15;
+  }
 
+  /* -- Forms ----------------------------------------------------- */
   .ff-input {
     @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:bg-slate-100 disabled:text-slate-500;
   }
@@ -91,20 +118,109 @@
     @apply inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 ring-1 ring-inset ring-slate-200;
   }
 
+  .ff-chip-brand {
+    @apply ff-chip bg-brand-50 text-brand-800 ring-brand-100;
+  }
+
+  .ff-chip-accent {
+    @apply ff-chip bg-accent-50 text-accent-800 ring-accent-100;
+  }
+
   .ff-divider {
     @apply h-px w-full bg-slate-200;
   }
 
-  /* Decorative grid background for the app shell */
+  /* -- App ambient background ----------------------------------- */
   .ff-app-bg {
+    background-color: #f5f7fb;
     background-image:
-      radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.08), transparent 50%),
-      radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.06), transparent 50%),
-      linear-gradient(to bottom, #f8fafc, #f1f5f9);
+      radial-gradient(800px 320px at 12% -10%, rgba(99, 102, 241, 0.14), transparent 60%),
+      radial-gradient(900px 360px at 95% -20%, rgba(34, 211, 238, 0.10), transparent 60%),
+      radial-gradient(700px 260px at 50% 110%, rgba(124, 58, 237, 0.06), transparent 65%),
+      linear-gradient(to bottom, #f5f7fb 0%, #eef2f8 100%);
     background-attachment: fixed;
   }
 
-  /* Skeleton loader */
+  /* -- Hero panels (deep navy) ---------------------------------- */
+  .ff-hero-dark {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    background: linear-gradient(135deg, #0a0f1f 0%, #1e1b4b 50%, #312e81 100%);
+    color: #f1f5f9;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 30px 60px -30px rgba(15, 23, 42, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  .ff-hero-dark::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 22px 22px, 44px 44px, 44px 44px;
+    background-position: 0 0, 0 0, 0 0;
+    opacity: 0.7;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at top left, rgba(0, 0, 0, 0.9), transparent 70%);
+  }
+  .ff-hero-dark::after {
+    content: "";
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 360px;
+    height: 360px;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.35), transparent 70%);
+    filter: blur(20px);
+    pointer-events: none;
+  }
+
+  /* Top nav bar */
+  .ff-topbar {
+    position: relative;
+    background: linear-gradient(180deg, #0a0f1f 0%, #0f172a 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px -16px rgba(15, 23, 42, 0.6);
+  }
+  .ff-topbar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(500px 80px at 10% 0%, rgba(99, 102, 241, 0.18), transparent 60%),
+      radial-gradient(500px 80px at 90% 0%, rgba(34, 211, 238, 0.12), transparent 60%);
+  }
+
+  /* Brand monogram chip */
+  .ff-brand-mark {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: #fff;
+    background: linear-gradient(135deg, #6366f1 0%, #7c3aed 55%, #22d3ee 110%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.25) inset,
+      0 0 0 1px rgba(99, 102, 241, 0.6) inset,
+      0 8px 24px -10px rgba(99, 102, 241, 0.65);
+  }
+  .ff-brand-mark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    background: radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.35), transparent 55%);
+    pointer-events: none;
+  }
+
+  /* -- Skeleton loader ------------------------------------------ */
   .ff-skeleton {
     @apply relative overflow-hidden rounded-md bg-slate-200/70;
   }
@@ -113,22 +229,49 @@
     @apply absolute inset-0 animate-shimmer bg-shimmer-stripe;
     background-size: 200% 100%;
   }
+
+  /* -- Accent panels -------------------------------------------- */
+  .ff-panel-violet {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(124, 58, 237, 0.04));
+    border: 1px solid rgba(99, 102, 241, 0.18);
+  }
+  .ff-panel-cyan {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.05), rgba(34, 211, 238, 0.04));
+    border: 1px solid rgba(34, 211, 238, 0.22);
+  }
+  .ff-panel-emerald {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(34, 197, 94, 0.04));
+    border: 1px solid rgba(16, 185, 129, 0.22);
+  }
+  .ff-panel-amber {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(251, 191, 36, 0.04));
+    border: 1px solid rgba(245, 158, 11, 0.22);
+  }
+
+  /* Glowing live indicator dot */
+  .ff-live-dot {
+    @apply inline-block h-1.5 w-1.5 rounded-full bg-emerald-400;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2), 0 0 8px rgba(16, 185, 129, 0.55);
+  }
 }
 
-/* d3 tooltip baseline (kept globally because tooltips are appended to body) */
+/* d3 tooltip (themed dark, used by both charts) ------------------- */
 .d3-tooltip,
 .d3-tooltip-semantic {
   pointer-events: none;
   position: absolute;
   z-index: 60;
   padding: 8px 10px;
-  border-radius: 8px;
-  background-color: rgba(15, 23, 42, 0.92);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(10, 15, 31, 0.96));
   color: #f8fafc;
   font-size: 12px;
   line-height: 1.25;
-  box-shadow: 0 10px 25px -10px rgba(15, 23, 42, 0.4), 0 4px 10px -2px rgba(15, 23, 42, 0.18);
-  border: 1px solid rgba(99, 102, 241, 0.35);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 12px 32px -8px rgba(15, 23, 42, 0.55),
+    0 0 0 1px rgba(99, 102, 241, 0.35);
   opacity: 0;
   transition: opacity 120ms ease-out;
 }
@@ -136,10 +279,11 @@
 .d3-tooltip-semantic strong {
   color: #ffffff;
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 .d3-tooltip .ff-tt-meta,
 .d3-tooltip-semantic .ff-tt-meta {
-  color: #cbd5e1;
+  color: #a5b4fc;
   font-size: 11px;
   margin-top: 2px;
 }

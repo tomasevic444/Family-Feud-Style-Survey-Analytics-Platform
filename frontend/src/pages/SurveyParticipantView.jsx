@@ -147,17 +147,19 @@ function SurveyParticipantView({ surveyId }) {
   return (
     <FrameWrap>
       <div className="ff-card overflow-hidden">
-        <div className="bg-gradient-to-r from-brand-600 to-indigo-700 px-6 py-5 text-white">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-brand-100/90">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse-dot" />
-            Live survey
+        <div className="ff-hero-dark !rounded-none px-6 py-6 sm:px-7 sm:py-7">
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/90">
+              <span className="ff-live-dot" />
+              Live survey
+            </div>
+            <h2 className="mt-2 text-2xl font-semibold leading-snug text-white sm:text-3xl">
+              {survey.question_text}
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-slate-300/90">
+              Share one short, honest answer. Your response is anonymous and contributes to a semantic clustering analysis.
+            </p>
           </div>
-          <h2 className="mt-1 text-xl font-semibold leading-snug sm:text-2xl">
-            {survey.question_text}
-          </h2>
-          <p className="mt-1 text-xs text-brand-100/80">
-            Share one short, honest answer. Your response is anonymous.
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-6">

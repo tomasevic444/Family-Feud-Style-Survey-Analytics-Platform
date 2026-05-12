@@ -2,17 +2,18 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
+// Cohesive AI Analytics palette: brand-anchored, paired with cyan and emerald accents.
 const PALETTE = [
-  '#6366f1', // indigo
-  '#22c55e', // green
-  '#f59e0b', // amber
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#a855f7', // violet
-  '#f43f5e', // rose
-  '#14b8a6', // teal
-  '#eab308', // yellow
-  '#0ea5e9', // sky
+  '#6366f1', // brand-500 (violet/indigo)
+  '#22d3ee', // accent-400 (cyan)
+  '#10b981', // emerald-500
+  '#f59e0b', // amber-500
+  '#a855f7', // violet-500
+  '#0ea5e9', // sky-500
+  '#ec4899', // pink-500
+  '#14b8a6', // teal-500
+  '#f43f5e', // rose-500
+  '#84cc16', // lime-500
 ];
 
 function truncate(label, max = 14) {
@@ -61,6 +62,33 @@ const SurveyResultsChart = ({ data }) => {
     const innerH = Math.max(80, height - margin.top - margin.bottom);
 
     svg.attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+
+    // SVG <defs> for per-bar vertical gradient + soft drop shadow
+    const defs = svg.append('defs');
+    const grad = defs
+      .append('linearGradient')
+      .attr('id', 'ff-bar-gradient')
+      .attr('x1', '0%')
+      .attr('x2', '0%')
+      .attr('y1', '0%')
+      .attr('y2', '100%');
+    grad.append('stop').attr('offset', '0%').attr('stop-color', 'currentColor').attr('stop-opacity', 1);
+    grad.append('stop').attr('offset', '100%').attr('stop-color', 'currentColor').attr('stop-opacity', 0.7);
+
+    const filter = defs
+      .append('filter')
+      .attr('id', 'ff-bar-shadow')
+      .attr('x', '-20%')
+      .attr('y', '-20%')
+      .attr('width', '140%')
+      .attr('height', '140%');
+    filter
+      .append('feDropShadow')
+      .attr('dx', 0)
+      .attr('dy', 4)
+      .attr('stdDeviation', 4)
+      .attr('flood-color', '#0f172a')
+      .attr('flood-opacity', 0.12);
 
     const g = svg
       .append('g')
@@ -156,8 +184,10 @@ const SurveyResultsChart = ({ data }) => {
       .attr('height', 0)
       .attr('rx', radius)
       .attr('ry', radius)
-      .attr('fill', (d) => color(d.canonical_name))
-      .attr('opacity', 0.92)
+      .style('color', (d) => color(d.canonical_name))
+      .attr('fill', 'url(#ff-bar-gradient)')
+      .attr('filter', 'url(#ff-bar-shadow)')
+      .attr('opacity', 0.95)
       .on('mouseover', function (event, d) {
         d3.select(this).attr('opacity', 1);
         tooltip
@@ -173,7 +203,7 @@ const SurveyResultsChart = ({ data }) => {
           .style('top', `${event.pageY - 12}px`);
       })
       .on('mouseout', function () {
-        d3.select(this).attr('opacity', 0.92);
+        d3.select(this).attr('opacity', 0.95);
         tooltip.style('opacity', 0);
       })
       .transition()
@@ -210,7 +240,7 @@ const SurveyResultsChart = ({ data }) => {
     return (
       <div className="ff-card p-6">
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+          <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -229,9 +259,7 @@ const SurveyResultsChart = ({ data }) => {
           </span>
           <div>
             <h4 className="ff-section-title">Response distribution</h4>
-            <p className="ff-section-subtitle">
-              No grouped responses to chart yet.
-            </p>
+            <p className="ff-section-subtitle">No grouped responses to chart yet.</p>
           </div>
         </div>
       </div>
@@ -240,14 +268,24 @@ const SurveyResultsChart = ({ data }) => {
 
   return (
     <div className="ff-card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
-        <div>
-          <h4 className="ff-section-title">Response distribution</h4>
-          <p className="ff-section-subtitle">
-            Counts per grouped answer · {sortedData.length} group{sortedData.length === 1 ? '' : 's'}
-          </p>
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-white via-brand-50/30 to-white px-5 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white shadow-glow">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+              <path d="M3 3v18h18" />
+              <rect x="7" y="13" width="3" height="5" rx="1" />
+              <rect x="12" y="9" width="3" height="9" rx="1" />
+              <rect x="17" y="6" width="3" height="12" rx="1" />
+            </svg>
+          </span>
+          <div>
+            <h4 className="ff-section-title">Response distribution</h4>
+            <p className="ff-section-subtitle">
+              Counts per grouped answer · {sortedData.length} group{sortedData.length === 1 ? '' : 's'}
+            </p>
+          </div>
         </div>
-        <span className="ff-chip">Bar chart</span>
+        <span className="ff-chip-brand">Bar chart</span>
       </div>
       <div ref={containerRef} className="px-3 py-3">
         <svg ref={svgRef} role="img" aria-label="Response distribution bar chart" />

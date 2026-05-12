@@ -886,14 +886,25 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
       <div className="space-y-6">
         <div className="ff-card overflow-hidden">
-          <div className="border-b border-slate-100 bg-gradient-to-br from-white via-white to-brand-50/40 px-6 py-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-brand-50/60 via-white to-accent-50/40 px-6 py-5">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-16 -right-10 h-44 w-44 rounded-full bg-brand-400/15 blur-3xl"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-16 left-32 h-40 w-40 rounded-full bg-accent-400/10 blur-3xl"
+            />
+            <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <p className="ff-section-subtitle">Survey question</p>
-                <h2 className="mt-0.5 text-xl font-semibold leading-snug text-slate-900 sm:text-2xl">
+                <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700/90">
+                  <span className="h-1 w-1 rounded-full bg-brand-500" />
+                  Survey question
+                </p>
+                <h2 className="mt-1 text-xl font-semibold leading-snug text-slate-900 sm:text-2xl">
                   {survey.question_text}
                 </h2>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
                   <span
                     className={
                       'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-semibold uppercase tracking-wide ring-1 ring-inset ' +
@@ -902,7 +913,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                         : 'bg-slate-100 text-slate-600 ring-slate-200')
                     }
                   >
-                    <span className={'h-1.5 w-1.5 rounded-full ' + (survey.is_active ? 'bg-emerald-500 animate-pulse-dot' : 'bg-slate-400')} />
+                    {survey.is_active ? <span className="ff-live-dot" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />}
                     {survey.is_active ? 'Active' : 'Inactive'}
                   </span>
                   <span className="ff-chip">
@@ -913,7 +924,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     Limit {survey.participant_limit}
                   </span>
                   {Array.isArray(survey.tags) && survey.tags.slice(0, 3).map((t) => (
-                    <span key={t} className="ff-chip">#{t}</span>
+                    <span key={t} className="ff-chip-brand">#{t}</span>
                   ))}
                 </div>
               </div>
@@ -1154,10 +1165,19 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
             {groupedResults ? (
               <div className="space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-brand-50/40 shadow-card">
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                <div className="relative overflow-hidden rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-white to-brand-50/50 shadow-card">
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-brand-400/10 blur-3xl"
+                  />
+                  <div className="relative z-10 flex flex-wrap items-start justify-between gap-3 border-b border-brand-100/60 px-4 py-3">
                     <div>
-                      <p className="ff-section-subtitle uppercase tracking-wide">Latest processing run</p>
+                      <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-700/90">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                        Latest processing run
+                      </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <StatusBadge status={groupedResults.status} />
                         {isActiveProcessing(groupedResults.status) && (
@@ -1170,12 +1190,15 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     </div>
                     {(activeRunContext.label || activeRunContext.runId || activeRunContext.clusteringMethod) && (
                       <div className="text-right text-xs text-slate-600">
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">Active result</p>
+                        <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                          <span className="ff-live-dot" />
+                          Active result
+                        </p>
                         <p className="mt-0.5 font-medium text-slate-800">
                           {activeRunContext.label || 'Latest result'}
                         </p>
                         <p className="text-slate-500">
-                          {activeRunContext.runId && <>run {shortRunId(activeRunContext.runId)}</>}
+                          {activeRunContext.runId && <span className="font-mono">{shortRunId(activeRunContext.runId)}</span>}
                           {activeRunContext.clusteringMethod && <> · {activeRunContext.clusteringMethod}</>}
                         </p>
                       </div>
@@ -1270,14 +1293,22 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         </div>
 
         <div className="ff-card overflow-hidden">
-          <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h3 className="ff-section-title">Processing runs</h3>
-              <p className="ff-section-subtitle">
-                Stored snapshots from every processing run. Preview, reuse settings, or set as active.
-              </p>
+          <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-brand-50/40 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="ff-brand-mark mt-0.5 h-9 w-9">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="relative z-10 h-5 w-5" aria-hidden="true">
+                  <path d="M12 8v4l3 2" />
+                  <circle cx="12" cy="12" r="9" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="ff-section-title">Processing runs</h3>
+                <p className="ff-section-subtitle">
+                  Stored snapshots from every processing run. Preview, reuse settings, or set as active.
+                </p>
+              </div>
             </div>
-            <span className="ff-chip self-start sm:self-auto">
+            <span className="ff-chip-brand self-start sm:self-auto">
               {isLoadingRuns ? 'Loading…' : `${processingRuns.length} run${processingRuns.length === 1 ? '' : 's'}`}
             </span>
           </div>
@@ -1309,17 +1340,23 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                   <li
                     key={run.run_id}
                     className={
-                      'rounded-xl border bg-white p-3 transition hover:shadow-card-lift ' +
+                      'relative overflow-hidden rounded-xl border p-3 transition hover:shadow-card-lift ' +
                       (run.is_active
-                        ? 'border-emerald-300 bg-gradient-to-br from-emerald-50/60 to-white ring-1 ring-emerald-200'
-                        : 'border-slate-200')
+                        ? 'border-emerald-300 bg-gradient-to-br from-emerald-50/80 via-white to-accent-50/40 shadow-glow-emerald ring-1 ring-emerald-200'
+                        : 'border-slate-200 bg-white')
                     }
                   >
+                    {run.is_active && (
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-500 to-accent-500"
+                        aria-hidden="true"
+                      />
+                    )}
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <StatusBadge status={run.status} uppercase={false} />
                         {run.is_active && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
                               <path d="M20 6 9 17l-5-5" />
                             </svg>
@@ -1439,9 +1476,9 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         </div>
 
         <div className="ff-card overflow-hidden">
-          <div className="flex flex-col gap-1 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-accent-50/30 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent-50 text-accent-700 ring-1 ring-inset ring-accent-100 shadow-glow-cyan">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
                   <path d="M3 3v18h18" />
                   <path d="M7 14l3-3 3 3 5-6" />
@@ -1456,7 +1493,11 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               </div>
             </div>
             {groupedResults?.manual_edits_applied && (
-              <span className="inline-flex self-start rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200">
+              <span className="inline-flex items-center gap-1 self-start rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
                 Manual edits applied
               </span>
             )}
@@ -1474,19 +1515,19 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Total groups</p>
+                <div className="ff-panel-violet rounded-xl p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-brand-800/80">Total groups</p>
                   <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
                     {qualityInsights.totalGroups}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Grouped answers</p>
+                <div className="ff-panel-violet rounded-xl p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-brand-800/80">Grouped answers</p>
                   <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
                     {qualityInsights.totalGroupedAnswers}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Largest group</p>
                   <p className="mt-1 truncate text-sm font-semibold text-slate-900">
                     {qualityInsights.largestGroup
@@ -1494,7 +1535,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       : '—'}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Smallest group</p>
                   <p className="mt-1 truncate text-sm font-semibold text-slate-900">
                     {qualityInsights.smallestGroup
@@ -1502,7 +1543,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                       : '—'}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3">
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-3">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Avg group size</p>
                   <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
                     {qualityInsights.averageGroupSize != null
@@ -1512,13 +1553,17 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                 </div>
                 <div
                   className={
-                    'rounded-xl border p-3 ' +
+                    'rounded-xl p-3 ' +
                     (qualityInsights.potentialReviewItemsCount > 0
-                      ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-white'
-                      : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white')
+                      ? 'ff-panel-amber'
+                      : 'ff-panel-emerald')
                   }
                 >
-                  <p className="text-[11px] uppercase tracking-wide text-slate-500">Review items</p>
+                  <p className={`text-[11px] uppercase tracking-wide ${
+                    qualityInsights.potentialReviewItemsCount > 0 ? 'text-amber-800/85' : 'text-emerald-800/85'
+                  }`}>
+                    Review items
+                  </p>
                   <p className={`mt-1 text-2xl font-semibold tabular-nums ${
                     qualityInsights.potentialReviewItemsCount > 0 ? 'text-amber-700' : 'text-emerald-700'
                   }`}>
@@ -1528,9 +1573,18 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
               </div>
 
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-card">
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-slate-900">Weak clusters</h4>
+                    <h4 className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <path d="M12 9v4" />
+                          <path d="M12 17h.01" />
+                        </svg>
+                      </span>
+                      Weak clusters
+                    </h4>
                     <span className="text-xs tabular-nums text-slate-500">
                       {qualityInsights.weakClusters.length}
                     </span>
@@ -1563,9 +1617,17 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                   )}
                 </div>
 
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-card">
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-slate-900">Low-confidence answers</h4>
+                    <h4 className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="m21 21-4.3-4.3" />
+                        </svg>
+                      </span>
+                      Low-confidence answers
+                    </h4>
                     <span className="text-xs tabular-nums text-slate-500">
                       {qualityInsights.lowConfidenceAnswers.length}
                     </span>
@@ -1581,10 +1643,13 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                   ) : (
                     <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs">
                       {qualityInsights.lowConfidenceAnswers.map((item, idx) => (
-                        <li key={`${item.canonical_name}-${item.answer}-${idx}`} className="rounded border border-slate-100 bg-slate-50 px-2 py-1.5">
+                        <li key={`${item.canonical_name}-${item.answer}-${idx}`} className="rounded-lg border border-amber-100 bg-amber-50/60 px-2 py-1.5">
                           <div className="font-medium text-slate-900">{item.answer || '—'}</div>
-                          <div className="mt-0.5 text-slate-600">
-                            Group: {item.canonical_name || '—'} · match {formatPercent(item.similarity)}
+                          <div className="mt-0.5 flex items-center justify-between text-slate-600">
+                            <span>Group: {item.canonical_name || '—'}</span>
+                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold tabular-nums text-amber-800">
+                              {formatPercent(item.similarity)}
+                            </span>
                           </div>
                         </li>
                       ))}
@@ -1592,29 +1657,44 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                   )}
                 </div>
 
-                <div className="rounded-md border border-slate-200 bg-white p-3">
+                <div className="rounded-xl border border-accent-100 bg-gradient-to-br from-white to-accent-50/30 p-3 shadow-card">
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-slate-900">Similar group hints</h4>
+                    <h4 className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-accent-100 text-accent-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+                          <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                          <path d="M3 12h18" />
+                          <path d="M12 3a14 14 0 0 1 0 18" />
+                          <path d="M12 3a14 14 0 0 0 0 18" />
+                        </svg>
+                      </span>
+                      Similar group hints
+                    </h4>
                     <span className="text-xs tabular-nums text-slate-500">{reviewHintPairs.length}</span>
                   </div>
                   {reviewHintPairs.length > 0 ? (
                     <>
-                      <p className="mt-2 text-xs text-indigo-900/75">
+                      <p className="mt-2 text-xs text-accent-900/75">
                         {reviewHintPairs.length} similar group pair{reviewHintPairs.length === 1 ? '' : 's'} may need review.
                       </p>
-                      <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs text-indigo-900/90">
+                      <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto text-xs text-accent-900/90">
                         {reviewHintPairs.slice(0, 5).map((pair, idx) => (
-                          <li key={`${pair.source_group}-${pair.target_group}-${idx}`} className="rounded border border-indigo-100 bg-indigo-50 px-2 py-1.5">
-                            <span className="font-medium">{pair.source_group}</span> ↔{' '}
-                            <span className="font-medium">{pair.target_group}</span>{' '}
-                            <span className="text-indigo-800/80">
-                              ({formatPercent(pair.similarity)})
-                            </span>
+                          <li key={`${pair.source_group}-${pair.target_group}-${idx}`} className="rounded-lg border border-accent-100 bg-white/80 px-2 py-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate">
+                                <span className="font-medium">{pair.source_group}</span>{' '}
+                                <span className="text-accent-700">↔</span>{' '}
+                                <span className="font-medium">{pair.target_group}</span>
+                              </span>
+                              <span className="rounded-full bg-accent-100 px-1.5 py-0.5 font-semibold tabular-nums text-accent-800">
+                                {formatPercent(pair.similarity)}
+                              </span>
+                            </div>
                           </li>
                         ))}
                       </ul>
                       {reviewHintPairs.length > 5 && (
-                        <p className="mt-1 text-[11px] text-indigo-900/70">
+                        <p className="mt-1 text-[11px] text-accent-900/70">
                           +{reviewHintPairs.length - 5} more similar pair{reviewHintPairs.length - 5 === 1 ? '' : 's'}.
                         </p>
                       )}
@@ -1650,9 +1730,9 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
 
         <div className="ff-card overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-emerald-50/30 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-100">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
                   <path d="M3 6h18" />
                   <path d="M6 12h12" />
@@ -1750,7 +1830,11 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                         )}
                         <p className="min-w-0 truncate text-sm font-semibold text-slate-900">
                           {group.canonical_name}
-                          <span className="ml-2 inline-flex items-center rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-100 tabular-nums">
+                          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-brand-50 to-accent-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-100 tabular-nums">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-2.5 w-2.5" aria-hidden="true">
+                              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                              <circle cx="9" cy="7" r="4" />
+                            </svg>
                             {group.count}
                           </span>
                         </p>
@@ -1786,7 +1870,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                                     'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ring-1 ring-inset ' +
                                     (lowConfidence
                                       ? 'bg-amber-50 text-amber-700 ring-amber-200'
-                                      : 'bg-slate-100 text-slate-600 ring-slate-200')
+                                      : 'bg-accent-50 text-accent-800 ring-accent-100')
                                   }
                                   title={lowConfidence ? 'Low-confidence answer' : 'Match score'}
                                 >
