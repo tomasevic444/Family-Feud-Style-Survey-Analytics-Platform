@@ -66,7 +66,7 @@ function CreateSurveyForm({ onSurveyCreated, onCancel }) {
   };
 
   return (
-    <div className="ff-card overflow-hidden">
+    <div className="ff-card ff-card-topline overflow-hidden">
       <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-brand-50/40 to-accent-50/30 px-5 py-4">
         <div className="flex items-start gap-3">
           <span className="ff-brand-mark mt-0.5 h-9 w-9">

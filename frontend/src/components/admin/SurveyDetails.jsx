@@ -885,8 +885,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
       />
 
       <div className="space-y-6">
-        <div className="ff-card overflow-hidden">
-          <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-brand-50/60 via-white to-accent-50/40 px-6 py-5">
+        <div className="ff-card ff-card-topline overflow-hidden">
+          <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-brand-50/70 via-white to-accent-50/50 px-6 py-5">
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -top-16 -right-10 h-44 w-44 rounded-full bg-brand-400/15 blur-3xl"
@@ -1165,10 +1165,18 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
             {groupedResults ? (
               <div className="space-y-3">
-                <div className="relative overflow-hidden rounded-2xl border border-brand-100 bg-gradient-to-br from-white via-white to-brand-50/50 shadow-card">
+                <div className="relative overflow-hidden rounded-2xl border border-brand-200/70 bg-gradient-to-br from-white via-white to-brand-50/60 shadow-glow">
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-brand-500 to-accent-500"
+                  />
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-brand-400/10 blur-3xl"
+                    className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full bg-brand-400/15 blur-3xl"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-accent-400/10 blur-3xl"
                   />
                   <div className="relative z-10 flex flex-wrap items-start justify-between gap-3 border-b border-brand-100/60 px-4 py-3">
                     <div>
@@ -1292,7 +1300,7 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
           </div>
         </div>
 
-        <div className="ff-card overflow-hidden">
+        <div className="ff-card ff-card-topline overflow-hidden">
           <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-brand-50/40 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="ff-brand-mark mt-0.5 h-9 w-9">
@@ -1475,8 +1483,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
           </div>
         </div>
 
-        <div className="ff-card overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-accent-50/30 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="ff-card ff-card-accent ff-card-topline overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-accent-50/40 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-accent-50 text-accent-700 ring-1 ring-inset ring-accent-100 shadow-glow-cyan">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
@@ -1729,10 +1737,10 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         ) : null}
 
 
-        <div className="ff-card overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-emerald-50/30 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="ff-card ff-card-topline overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-slate-200 bg-gradient-to-r from-white via-emerald-50/40 to-white px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100 shadow-glow-emerald">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
                   <path d="M3 6h18" />
                   <path d="M6 12h12" />
@@ -1910,10 +1918,10 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
           </div>
         </div>
 
-        <div className="ff-card overflow-hidden">
-          <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-5 py-4">
+        <div className="ff-card ff-card-topline overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-gradient-to-r from-white via-slate-50/60 to-white px-5 py-4">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
+              <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-slate-100 ring-1 ring-inset ring-slate-700 shadow-on-dark">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
@@ -1941,8 +1949,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         </div>
 
         {processingHistory.length > 0 && (
-          <details className="ff-card overflow-hidden">
-            <summary className="flex cursor-pointer items-center justify-between gap-2 border-b border-slate-200 px-5 py-4">
+          <details className="ff-card ff-card-topline overflow-hidden">
+            <summary className="flex cursor-pointer items-center justify-between gap-2 border-b border-slate-200 bg-gradient-to-r from-white via-slate-50/60 to-white px-5 py-4">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">

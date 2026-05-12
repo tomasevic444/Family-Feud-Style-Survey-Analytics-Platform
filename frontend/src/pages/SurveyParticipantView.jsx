@@ -146,7 +146,7 @@ function SurveyParticipantView({ surveyId }) {
 
   return (
     <FrameWrap>
-      <div className="ff-card overflow-hidden">
+      <div className="ff-card ff-card-topline overflow-hidden">
         <div className="ff-hero-dark !rounded-none px-6 py-6 sm:px-7 sm:py-7">
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-200/90">

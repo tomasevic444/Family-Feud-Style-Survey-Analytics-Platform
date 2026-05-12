@@ -84,13 +84,13 @@ function App() {
         )}
       </main>
 
-      <footer className="border-t border-slate-200/70 bg-white/40 backdrop-blur">
-        <div className="container flex flex-col items-center justify-between gap-1 py-4 text-[11px] text-slate-500 sm:flex-row">
+      <footer className="border-t border-white/5 bg-night-900/50 backdrop-blur">
+        <div className="container flex flex-col items-center justify-between gap-1 py-4 text-[11px] text-slate-400 sm:flex-row">
           <span>
             Family Feud Survey Analytics · diploma project
           </span>
-          <span className="inline-flex items-center gap-1.5 text-slate-400">
-            <span className="inline-block h-1 w-1 rounded-full bg-brand-400" />
+          <span className="inline-flex items-center gap-1.5 text-slate-500">
+            <span className="inline-block h-1 w-1 rounded-full bg-brand-400 shadow-[0_0_6px_rgba(99,102,241,0.7)]" />
             Powered by semantic embeddings
           </span>
         </div>

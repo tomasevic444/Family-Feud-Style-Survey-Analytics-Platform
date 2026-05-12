@@ -80,13 +80,14 @@ export default {
         },
       },
       boxShadow: {
-        card: '0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.05)',
-        'card-lift': '0 10px 30px -12px rgba(15, 23, 42, 0.18), 0 4px 12px -4px rgba(15, 23, 42, 0.10)',
+        card: '0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 28px -14px rgba(15, 23, 42, 0.22)',
+        'card-lift': '0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 14px 38px -14px rgba(15, 23, 42, 0.32), 0 6px 14px -6px rgba(15, 23, 42, 0.14)',
         soft: '0 1px 1px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.04)',
         glow: '0 0 0 1px rgba(99, 102, 241, 0.25), 0 12px 36px -10px rgba(79, 70, 229, 0.45)',
         'glow-cyan': '0 0 0 1px rgba(34, 211, 238, 0.25), 0 12px 36px -10px rgba(6, 182, 212, 0.4)',
         'glow-emerald': '0 0 0 1px rgba(16, 185, 129, 0.25), 0 12px 30px -10px rgba(16, 185, 129, 0.35)',
         'inner-line': 'inset 0 0 0 1px rgba(255, 255, 255, 0.06)',
+        'on-dark': '0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 18px 40px -18px rgba(2, 6, 23, 0.6), 0 2px 6px rgba(2, 6, 23, 0.35)',
       },
       keyframes: {
         shimmer: {

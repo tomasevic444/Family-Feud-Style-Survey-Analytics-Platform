@@ -240,8 +240,8 @@ const SemanticSpaceChart = ({ data }) => {
   }, [validData, size]);
 
   return (
-    <div className="ff-card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-white via-accent-50/30 to-white px-5 py-3">
+    <div className="ff-card ff-card-accent ff-card-topline overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-white via-accent-50/40 to-white px-5 py-3">
         <div className="flex items-center gap-2.5">
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600 text-white shadow-glow-cyan">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
