@@ -8,6 +8,7 @@ import SemanticSpaceChart from './SemanticSpaceChart';
 import RunPreviewModal from './RunPreviewModal';
 import KMeansDiagnosticsPanel from './KMeansDiagnosticsPanel';
 import ImportResponsesModal from './ImportResponsesModal';
+import ProcessingAdvisorModal, { buildAdvisorConfigPatch } from './ProcessingAdvisorModal';
 
 const POLL_MS = 2500;
 
@@ -144,6 +145,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
   const [useSettingsRunId, setUseSettingsRunId] = useState(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
+  const [advisorMessage, setAdvisorMessage] = useState('');
 
   const participantSurveyUrl = useMemo(() => {
     if (!surveyId || typeof window === 'undefined') return '';
@@ -198,6 +201,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         setUseSettingsRunId(null);
         setIsImportModalOpen(false);
         setImportMessage('');
+        setIsAdvisorOpen(false);
+        setAdvisorMessage('');
         return;
     }
     setIsLoading(true);
@@ -222,6 +227,8 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     setUseSettingsRunId(null);
     setIsImportModalOpen(false);
     setImportMessage('');
+    setIsAdvisorOpen(false);
+    setAdvisorMessage('');
 
 
     try {
@@ -327,12 +334,23 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
     return () => clearInterval(id);
   }, [surveyId, groupedResults?.status, fetchProcessingRuns]);
 
+  const handleApplyAdvisorPreset = useCallback((preset) => {
+    if (!preset) return;
+    setProcessingConfig((prev) => {
+      const patch = buildAdvisorConfigPatch(preset, prev);
+      return { ...prev, ...patch };
+    });
+    setIsAdvisorOpen(false);
+    setAdvisorMessage('Advisor settings applied. Review them, then click Process responses.');
+  }, []);
+
   const handleProcessSurvey = async () => {
     if (!surveyId) return;
     setProcessingMessage('Queuing processing…');
     setStatusUpdateMessage('');
     setError(null);
     setGroupNameEditError('');
+    setAdvisorMessage('');
     try {
       const excludedWords = String(processingConfig.excluded_words || '')
         .split(',')
@@ -912,6 +930,11 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
         surveyQuestion={survey?.question_text}
         onImported={handleImportedResponses}
       />
+      <ProcessingAdvisorModal
+        show={isAdvisorOpen}
+        onClose={() => setIsAdvisorOpen(false)}
+        onApplyPreset={handleApplyAdvisorPreset}
+      />
 
       <div className="space-y-6">
         <div className="ff-card ff-card-topline overflow-hidden">
@@ -988,17 +1011,33 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
           <div className="px-6 py-5 space-y-5">
             <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/70 shadow-card">
-              <div className="flex items-start gap-3 border-b border-slate-200 px-4 py-3">
-                <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.34.65.7 1.34 1 2v.09A2 2 0 0 1 21 13h-.09c-.66 0-1.33.07-2 .4z" />
-                  </svg>
-                </span>
-                <div>
-                  <h3 className="ff-section-title">Processing settings</h3>
-                  <p className="ff-section-subtitle">Applies to the next processing run only.</p>
+              <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.34.65.7 1.34 1 2v.09A2 2 0 0 1 21 13h-.09c-.66 0-1.33.07-2 .4z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <h3 className="ff-section-title">Processing settings</h3>
+                    <p className="ff-section-subtitle">Applies to the next processing run only.</p>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAdvisorOpen(true)}
+                  className="ff-btn-ghost inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-brand-700 hover:text-brand-900"
+                  aria-label="Open processing advisor"
+                  title="See recommended processing presets"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  Need help choosing?
+                </button>
               </div>
               <div className="grid grid-cols-1 gap-4 px-4 py-4 md:grid-cols-2">
                 <label className="block">
@@ -1026,6 +1065,14 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     <option value="kmeans_auto_k">KMeans auto-K</option>
                     <option value="kmeans_fixed_k">KMeans fixed-K</option>
                   </select>
+                  <span className="mt-1 block text-[11px] text-slate-500">
+                    {processingConfig.clustering_method === 'agglomerative_threshold' &&
+                      'Stable baseline. Lower threshold creates more specific groups; higher threshold merges more aggressively.'}
+                    {processingConfig.clustering_method === 'kmeans_auto_k' &&
+                      'Best when category count is unknown. The system evaluates multiple K values and selects one using quality metrics.'}
+                    {processingConfig.clustering_method === 'kmeans_fixed_k' &&
+                      'Best when you know approximately how many categories should exist.'}
+                  </span>
                 </label>
                 {processingConfig.clustering_method === 'agglomerative_threshold' && (
                   <label className="block md:col-span-2">
@@ -1099,6 +1146,14 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
                     <option value="BAAI/bge-m3">BAAI/bge-m3 — experimental / slower</option>
                     <option value="intfloat/multilingual-e5-large-instruct">multilingual-e5-large-instruct — heavy experimental</option>
                   </select>
+                  <span className="mt-1 block text-[11px] text-slate-500">
+                    {processingConfig.embedding_model === 'sentence-transformers/all-MiniLM-L6-v2' &&
+                      'Recommended default. Fast and stable for local demos.'}
+                    {processingConfig.embedding_model === 'BAAI/bge-m3' &&
+                      'Experimental multilingual option. Useful to test on Serbian-English mixed answers.'}
+                    {processingConfig.embedding_model === 'intfloat/multilingual-e5-large-instruct' &&
+                      'Heavy experimental option. Slower and not recommended as the default.'}
+                  </span>
                   {nonDefaultModel && (
                     <span className="mt-1 block text-[11px] text-amber-700">
                       Large models may be slower and may download on first use.
@@ -1326,6 +1381,19 @@ function SurveyDetails({ surveyId, onSurveyUpdate }) {
 
             {statusUpdateMessage && (
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{statusUpdateMessage}</div>
+            )}
+            {advisorMessage && (
+              <div className="flex items-start justify-between gap-2 rounded-md border border-brand-200 bg-brand-50/70 px-3 py-2 text-sm text-brand-900">
+                <span>{advisorMessage}</span>
+                <button
+                  type="button"
+                  onClick={() => setAdvisorMessage('')}
+                  className="text-brand-700 hover:text-brand-900"
+                  aria-label="Dismiss advisor message"
+                >
+                  ✕
+                </button>
+              </div>
             )}
             {processingMessage && (
               <div className="rounded-md border border-brand-100 bg-brand-50/70 px-3 py-2 text-sm text-brand-900">{processingMessage}</div>
