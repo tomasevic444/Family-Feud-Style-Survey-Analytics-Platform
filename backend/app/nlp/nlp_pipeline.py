@@ -19,6 +19,11 @@ EMBEDDING_DESCRIPTOR = "sbert_unit_normalized"
 DEFAULT_DISTANCE_THRESHOLD = 1.0
 SIMILAR_GROUP_PAIR_MAX = 5
 DEFAULT_CONFIG = ProcessingConfig()
+LABEL_STRATEGY_CURRENT_READABILITY = "current_readability_heuristic"
+LABEL_STRATEGY_NEAREST_TO_CENTROID = "nearest_to_centroid"
+LABEL_STRATEGY_CENTROID_TOP_N_READABILITY = "centroid_top_n_readability"
+PRODUCTION_LABEL_STRATEGY = LABEL_STRATEGY_CENTROID_TOP_N_READABILITY
+LABEL_STRATEGY_TOP_N = 3
 
 
 def choose_canonical_name(raw_list: List[str]) -> str:
@@ -30,12 +35,77 @@ def choose_canonical_name(raw_list: List[str]) -> str:
     if not raw_list:
         return ""
     counts = Counter(raw_list)
+    return min(counts.keys(), key=lambda candidate: _readability_sort_key(candidate, counts))
 
-    def sort_key(candidate: str) -> tuple:
-        word_count = len(candidate.split())
-        return (word_count, len(candidate), -counts[candidate], candidate)
 
-    return min(counts.keys(), key=sort_key)
+def _readability_sort_key(candidate: str, counts: Counter) -> tuple:
+    word_count = len(candidate.split())
+    return (word_count, len(candidate), -counts[candidate], candidate)
+
+
+def _centroid_ranked_label_candidates(
+    raw_list: List[str],
+    group_embeddings: np.ndarray,
+    centroid: np.ndarray,
+) -> list[dict[str, Any]]:
+    """Rank unique cluster answers by highest answer-to-centroid cosine similarity."""
+    if not raw_list or group_embeddings is None or len(group_embeddings) == 0:
+        return []
+    best_by_answer: dict[str, dict[str, Any]] = {}
+    for idx, answer in enumerate(raw_list):
+        similarity = _cosine_similarity(_unit_normalize(group_embeddings[idx]), centroid)
+        current = best_by_answer.get(answer)
+        if current is None or similarity > current["similarity"]:
+            best_by_answer[answer] = {
+                "answer": answer,
+                "similarity": similarity,
+                "index": idx,
+            }
+    counts = Counter(raw_list)
+    return sorted(
+        best_by_answer.values(),
+        key=lambda item: (
+            -item["similarity"],
+            _readability_sort_key(item["answer"], counts),
+            item["index"],
+        ),
+    )
+
+
+def choose_canonical_name_from_embeddings(
+    raw_list: List[str],
+    group_embeddings: np.ndarray,
+    centroid: np.ndarray,
+    strategy: str = LABEL_STRATEGY_CURRENT_READABILITY,
+    top_n: int = LABEL_STRATEGY_TOP_N,
+) -> str:
+    """
+    Choose a cluster label with an explicit strategy.
+
+    - current_readability_heuristic: existing text-only behavior.
+    - nearest_to_centroid: medoid-like member closest to the cluster centroid.
+    - centroid_top_n_readability: choose the most readable label among the top-N
+      centroid-nearest members.
+    """
+    if not raw_list:
+        return ""
+    if strategy == LABEL_STRATEGY_CURRENT_READABILITY:
+        return choose_canonical_name(raw_list)
+
+    ranked = _centroid_ranked_label_candidates(raw_list, group_embeddings, centroid)
+    if not ranked:
+        return choose_canonical_name(raw_list)
+
+    if strategy == LABEL_STRATEGY_NEAREST_TO_CENTROID:
+        return ranked[0]["answer"]
+
+    if strategy == LABEL_STRATEGY_CENTROID_TOP_N_READABILITY:
+        counts = Counter(raw_list)
+        n = max(1, min(top_n, len(ranked)))
+        candidates = [item["answer"] for item in ranked[:n]]
+        return min(candidates, key=lambda candidate: _readability_sort_key(candidate, counts))
+
+    raise ValueError(f"Unsupported label strategy: {strategy}")
 
 
 def _unit_normalize(vec: np.ndarray) -> np.ndarray:
@@ -78,7 +148,7 @@ def _format_for_embedding(model_name: str, answers: List[str]) -> List[str]:
 def _cluster_labels_auto_k(embeddings: np.ndarray, min_k: int, max_k: int) -> tuple[np.ndarray, Dict[str, Any]]:
     n = embeddings.shape[0]
     lower = max(2, min_k)
-    # silhouette/ch/db are only valid when 2 <= k < n
+    # silhouette/Calinski-Harabasz/Davies-Bouldin are only valid when 2 <= k < n
     upper = min(max_k, n - 1)
 
     if n < 3 or lower > upper:
@@ -228,6 +298,7 @@ def group_responses(
                 "excluded_answer_count": excluded_answer_count,
                 "processed_answer_count": 0,
                 "excluded_words_used": excluded_words,
+                "label_strategy": PRODUCTION_LABEL_STRATEGY,
             },
         }
     
@@ -255,6 +326,7 @@ def group_responses(
                 "excluded_answer_count": excluded_answer_count,
                 "processed_answer_count": 1,
                 "excluded_words_used": excluded_words,
+                "label_strategy": PRODUCTION_LABEL_STRATEGY,
             },
         }
 
@@ -280,6 +352,7 @@ def group_responses(
         "excluded_answer_count": excluded_answer_count,
         "processed_answer_count": len(clean_answers),
         "excluded_words_used": excluded_words,
+        "label_strategy": PRODUCTION_LABEL_STRATEGY,
     }
 
     try:
@@ -357,7 +430,13 @@ def group_responses(
             for idx in indices
         ]
         response_similarities.sort(key=lambda item: item["similarity"], reverse=True)
-        canonical_name = choose_canonical_name(raw_list)
+        canonical_name = choose_canonical_name_from_embeddings(
+            raw_list,
+            group_embeddings,
+            centroid,
+            strategy=PRODUCTION_LABEL_STRATEGY,
+            top_n=LABEL_STRATEGY_TOP_N,
+        )
         
         if group_coords.ndim == 1:
             avg_x = float(group_coords[0])
